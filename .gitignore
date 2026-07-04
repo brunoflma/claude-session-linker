@@ -1,0 +1,24 @@
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Project venv (recreate with: powershell -File .app\setup.ps1)
+.app/venv/
+
+# Logs
+.app/logs/
+*.log
+
+# Local backups of Claude Desktop session index (may contain private
+# project paths/titles — never commit)
+.app/backups/
+
+# Per-machine account nickname mapping (private)
+.app/account_labels.json
+.app/session_links.json
+
+# Local Claude workspace state
+.claude/
+.conversation-esaa/
+.grok/
