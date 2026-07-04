@@ -2,8 +2,6 @@
 
 Interface local para visualizar, vincular e comparar sessões do Claude Desktop entre contas diferentes no mesmo computador.
 
-Desenvolvido por Bruno Ferreira.
-
 ## O que a ferramenta faz
 
 - Lista sessões locais do Claude Desktop na aba Code.
