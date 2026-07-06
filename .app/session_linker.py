@@ -29,9 +29,9 @@ per account, so the same visibility problem applies even more literally.
 This tool:
   1. Shows every indexed session (Code or Cowork, pick with the toggle)
      across every account found on this machine.
-  2. Copies ("links") a session's index entry -- and, for Cowork, its data
-     folder -- into another account's folder, so it shows up in that
-     account's sidebar too.
+  2. Copies ("links") a session into another account's folder, so it shows
+     up in that account's sidebar too. Code links clone the transcript to a
+     new cliSessionId; Cowork links copy the same-named data folder.
 
 Safety:
   - Link actions never delete or move anything -- only copy.
@@ -54,6 +54,7 @@ import sys
 import threading
 import time
 import traceback
+import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -83,6 +84,7 @@ LINKS_FILE = APP_DIR / "session_links.json"
 LINKED_FROM_ACCOUNT_KEY = "_sessionLinkerLinkedFromAccount"
 LINKED_AT_KEY = "_sessionLinkerLinkedAt"
 ORIGIN_ACCOUNT_KEY = "_sessionLinkerOriginAccount"
+LINKED_SOURCE_CLI_SESSION_ID_KEY = "_sessionLinkerSourceCliSessionId"
 
 _PY = Path(sys.executable).parent
 _TCL = _PY / "tcl"
@@ -158,7 +160,7 @@ BADGE_BLUE_BG = "#2F6582"
 BADGE_TEXT = "#FFFFFF"
 SP = 16
 WIN_TITLE = "Claude Session Linker"
-APP_VERSION = "1.5"
+APP_VERSION = "1.6"
 DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 
 # ---------------------------------------------------------------------------
@@ -276,13 +278,21 @@ def save_link_registry(registry: dict) -> None:
     LINKS_FILE.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def record_link_metadata(dest_path: Path, source_account_id: str, origin_account_id: str | None = None) -> None:
+def record_link_metadata(
+    dest_path: Path,
+    source_account_id: str,
+    origin_account_id: str | None = None,
+    source_cli_session_id: str | None = None,
+) -> None:
     registry = load_link_registry()
-    registry[_link_key(dest_path)] = {
+    metadata = {
         LINKED_FROM_ACCOUNT_KEY: source_account_id,
         ORIGIN_ACCOUNT_KEY: origin_account_id or source_account_id,
         LINKED_AT_KEY: datetime.now().isoformat(timespec="seconds"),
     }
+    if source_cli_session_id:
+        metadata[LINKED_SOURCE_CLI_SESSION_ID_KEY] = source_cli_session_id
+    registry[_link_key(dest_path)] = metadata
     save_link_registry(registry)
 
 
@@ -364,6 +374,7 @@ def scan_sessions() -> dict:
                         "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
                         "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
                         "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
+                        "linkedSourceCliSessionId": link_metadata.get(LINKED_SOURCE_CLI_SESSION_ID_KEY) or data.get(LINKED_SOURCE_CLI_SESSION_ID_KEY),
                     })
             if account_sessions:
                 result.setdefault(account_id, []).extend(account_sessions)
@@ -417,6 +428,7 @@ def scan_cowork_sessions() -> dict:
                         "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
                         "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
                         "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
+                        "linkedSourceCliSessionId": link_metadata.get(LINKED_SOURCE_CLI_SESSION_ID_KEY) or data.get(LINKED_SOURCE_CLI_SESSION_ID_KEY),
                     })
             if account_sessions:
                 result.setdefault(account_id, []).extend(account_sessions)
@@ -467,6 +479,51 @@ def ensure_index_linked(src_path: Path, dest_path: Path, source_account_id: str,
     if copied:
         shutil.copy2(src_path, dest_path)
     record_link_metadata(dest_path, source_account_id, origin_account_id)
+    return copied
+
+
+def _new_cli_session_id(transcript_dir: Path) -> str:
+    while True:
+        cli_session_id = str(uuid.uuid4())
+        if not (transcript_dir / f"{cli_session_id}.jsonl").exists():
+            return cli_session_id
+
+
+def _read_index_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_code_index_clone(
+    src_path: Path,
+    dest_path: Path,
+    source_account_id: str,
+    origin_account_id: str,
+) -> bool:
+    source_data = _read_index_json(src_path)
+    data = source_data
+    source_cli_session_id = source_data.get("cliSessionId") or ""
+    dest_cli_session_id = ""
+    if dest_path.exists():
+        try:
+            dest_data = _read_index_json(dest_path)
+            dest_cli_session_id = dest_data.get("cliSessionId") or ""
+            data = dest_data
+        except Exception:
+            dest_cli_session_id = ""
+        if dest_cli_session_id and dest_cli_session_id != source_cli_session_id:
+            record_link_metadata(dest_path, source_account_id, origin_account_id, source_cli_session_id)
+            return False
+
+    if source_cli_session_id:
+        transcript_path = find_transcript_path(source_cli_session_id)
+        if transcript_path and transcript_path.exists():
+            cloned_cli_session_id = _new_cli_session_id(transcript_path.parent)
+            shutil.copy2(transcript_path, transcript_path.with_name(f"{cloned_cli_session_id}.jsonl"))
+            data["cliSessionId"] = cloned_cli_session_id
+
+    copied = not dest_path.exists()
+    dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    record_link_metadata(dest_path, source_account_id, origin_account_id, source_cli_session_id)
     return copied
 
 
@@ -545,15 +602,16 @@ def link_session_to_account(session: dict, target_account_id: str):
     dest_path = target_ws / session["path"].name
     try:
         if dest_path.exists():
-            ensure_index_linked(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
+            backup_path = backup_sessions_dir(target_ws.parent.parent)
+            write_code_index_clone(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
             return True, (
                 "Vínculo atualizado para esta conta.\n\n"
-                "A sessão já existia aqui; agora o Session Linker registrou a troca de volta "
-                "e manteve a origem original visível na lista."
+                "A sessão já existia aqui; agora o Session Linker registrou a troca de volta, "
+                "manteve a origem original visível na lista e preservou conversas Code independentes."
             )
 
         backup_path = backup_sessions_dir(target_ws.parent.parent)
-        ensure_index_linked(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
+        write_code_index_clone(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
     except Exception as e:
         backup_info = f" (backup salvo em {backup_path.name})" if "backup_path" in locals() else ""
         return False, f"Falha ao vincular{backup_info}: {e}"
@@ -733,6 +791,54 @@ def conversation_file_available(session: dict, mode: str | None = None) -> bool:
     return find_transcript_path(session.get("cliSessionId", "")) is not None
 
 
+def conversation_file_identity(session: dict, mode: str | None = None):
+    if mode == "cowork":
+        data_dir = session.get("data_dir")
+        if not data_dir:
+            return None
+        path = Path(data_dir) / "audit.jsonl"
+    elif mode == "code":
+        path = find_transcript_path(session.get("cliSessionId", ""))
+    else:
+        return None
+    if path is None or not path.exists():
+        return None
+    try:
+        return path.resolve()
+    except OSError:
+        return path
+
+
+def sessions_are_comparable(left_session: dict, right_session: dict, mode: str | None = None) -> bool:
+    left_identity = conversation_file_identity(left_session, mode)
+    right_identity = conversation_file_identity(right_session, mode)
+    return not (left_identity is not None and left_identity == right_identity)
+
+
+def is_direct_linked_counterpart(
+    source_account_id: str,
+    source_session: dict,
+    account_id: str,
+    session: dict,
+    mode: str | None = None,
+) -> bool:
+    if account_id == source_account_id:
+        return False
+
+    source_cli_id = source_session.get("cliSessionId")
+    session_cli_id = session.get("cliSessionId")
+    if mode == "code":
+        return (
+            session.get("linkedFromAccount") == source_account_id
+            and session.get("linkedSourceCliSessionId") == source_cli_id
+        ) or (
+            source_session.get("linkedFromAccount") == account_id
+            and source_session.get("linkedSourceCliSessionId") == session_cli_id
+        )
+
+    return bool(source_cli_id and session_cli_id and session_cli_id == source_cli_id)
+
+
 def find_possible_duplicates(sessions_by_account: dict, mode: str | None = None) -> dict:
     """Groups sessions by normalized cwd across ALL accounts. Returns
     {cwd: [(account_id, session), ...]} only for cwds where 2+ DIFFERENT
@@ -775,9 +881,13 @@ def find_linked_session_groups(sessions_by_account: dict) -> dict:
     }
 
 
-def build_compare_candidates(sessions_by_account: dict, source_account_id: str, source_session: dict) -> list[tuple[str, dict]]:
+def build_compare_candidates(
+    sessions_by_account: dict,
+    source_account_id: str,
+    source_session: dict,
+    mode: str | None = None,
+) -> list[tuple[str, dict]]:
     source_path = source_session.get("path")
-    source_cli_id = source_session.get("cliSessionId")
     candidates = []
     for account_id, sessions in sessions_by_account.items():
         for session in sessions:
@@ -788,19 +898,24 @@ def build_compare_candidates(sessions_by_account: dict, source_account_id: str, 
 
     def sort_key(item):
         account_id, session = item
-        linked_copy = account_id != source_account_id and session.get("cliSessionId") == source_cli_id
+        linked_copy = is_direct_linked_counterpart(source_account_id, source_session, account_id, session, mode)
         return (0 if linked_copy else 1, -session.get("lastActivityAt", 0))
 
     candidates.sort(key=sort_key)
     return candidates
 
 
-def linked_compare_targets(candidates: list[tuple[str, dict]], source_account_id: str, source_session: dict) -> list[tuple[str, dict]]:
-    source_cli_id = source_session.get("cliSessionId")
+def linked_compare_targets(
+    candidates: list[tuple[str, dict]],
+    source_account_id: str,
+    source_session: dict,
+    mode: str | None = None,
+) -> list[tuple[str, dict]]:
     return [
         (account_id, session)
         for account_id, session in candidates
-        if account_id != source_account_id and session.get("cliSessionId") == source_cli_id
+        if is_direct_linked_counterpart(source_account_id, source_session, account_id, session, mode)
+        and sessions_are_comparable(source_session, session, mode)
     ]
 
 
@@ -1539,11 +1654,20 @@ class SessionLinkerApp(ctk.CTk):
         account, any project) to compare against."""
         mode = mode or self.session_mode
         source_account_id, source_session = source
-        candidates = build_compare_candidates(self.sessions_by_account, source_account_id, source_session)
+        candidates = [
+            (account_id, session)
+            for account_id, session in build_compare_candidates(
+                self.sessions_by_account,
+                source_account_id,
+                source_session,
+                mode,
+            )
+            if sessions_are_comparable(source_session, session, mode)
+        ]
         if not candidates:
-            self._toast("Não há outra sessão para comparar ainda.")
+            self._toast("Não há outra sessão independente para comparar ainda.")
             return
-        linked_targets = linked_compare_targets(candidates, source_account_id, source_session)
+        linked_targets = linked_compare_targets(candidates, source_account_id, source_session, mode)
         if len(linked_targets) == 1:
             self._show_comparison(source, linked_targets[0], mode)
             return
@@ -1556,6 +1680,15 @@ class SessionLinkerApp(ctk.CTk):
         """Entry point from the duplicate-detection badge: `others` is
         already narrowed to sessions sharing this session's cwd."""
         mode = mode or self.session_mode
+        _, source_session = source
+        others = [
+            (account_id, session)
+            for account_id, session in others
+            if sessions_are_comparable(source_session, session, mode)
+        ]
+        if not others:
+            self._toast("Não há outra sessão independente para comparar ainda.")
+            return
         if len(others) > 1:
             self._show_candidate_picker(source, others, mode)
         else:

@@ -2,13 +2,14 @@
 
 Interface local para visualizar, vincular, comparar e remover sessões do Claude Desktop entre contas diferentes no mesmo computador.
 
-Versão atual: 1.5.
+Versão atual: 1.6.
 
 ## O que a ferramenta faz
 
 - Lista sessões locais do Claude Desktop na aba Code.
 - Lista sessões locais do Cowork / Agent Mode.
 - Vincula uma sessão de uma conta Claude para outra conta Claude no mesmo Windows.
+- Em sessões Code, clona o transcript ao vincular para que a conta de destino possa avançar sem alterar a conversa de origem.
 - Remove uma sessão de uma conta quando você não quer mais mantê-la naquela conta.
 - Mostra a origem e o rastreamento de vínculos entre contas.
 - Compara sessões vinculadas para indicar qual conversa tem mais mensagens ou atividade mais recente.
@@ -62,7 +63,7 @@ Para instalação por Git, clone o repositório e rode o mesmo `00 - Setup Claud
 
 Para comparar progresso entre contas, clique em `Comparar`. Quando existir uma sessão vinculada correspondente, a comparação abre direto nela.
 
-Para remover uma sessão apenas de uma conta, clique em `Remover`. O app cria backup antes de apagar. Em sessões Code, só o índice daquela conta é removido; o transcript compartilhado em `.claude\projects` é preservado. Em sessões Cowork, o índice e a pasta local de dados daquela sessão são removidos da conta selecionada.
+Para remover uma sessão apenas de uma conta, clique em `Remover`. O app cria backup antes de apagar. Em sessões Code, só o índice daquela conta é removido; o transcript local em `.claude\projects` é preservado. Em sessões Cowork, o índice e a pasta local de dados daquela sessão são removidos da conta selecionada.
 
 ## Segurança e privacidade
 
@@ -81,7 +82,8 @@ Antes de vincular sessões, o app cria backups em `.app\backups`.
 ## Limitações
 
 - O formato de armazenamento do Claude Desktop não é uma API pública e pode mudar.
-- A ferramenta copia e registra vínculos; ela não mescla conversas divergentes.
+- A ferramenta copia e registra vínculos; em sessões Code, novos vínculos também clonam o transcript local para que a conta de destino possa avançar sem alterar a contagem da origem.
+- A ferramenta não mescla conversas divergentes.
 - A comparação conta mensagens e última atividade a partir dos arquivos locais disponíveis no computador.
 
 ## Solução de problemas

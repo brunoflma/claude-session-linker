@@ -266,6 +266,60 @@ class SessionLinkerLogicTests(unittest.TestCase):
                 module.LINKS_FILE = original_links_file
                 module.BACKUPS_DIR = original_backups_dir
 
+    def test_code_link_clones_transcript_and_uses_new_cli_session_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            default_root = appdata / "Claude"
+            custom_root = localappdata / "Claude-3p"
+            source_path = write_code_session(default_root, "official-account", "workspace-official", "source", "cli-source", 20)
+            target_workspace = custom_root / "claude-code-sessions" / "threep-account" / "workspace-3p"
+            target_workspace.mkdir(parents=True)
+            (default_root / "config.json").write_text("{}", encoding="utf-8")
+            (custom_root / "config.json").write_text("{}", encoding="utf-8")
+
+            projects_dir = Path(tmp) / "projects"
+            project_dir = projects_dir / "cwd-hash"
+            project_dir.mkdir(parents=True)
+            source_transcript = project_dir / "cli-source.jsonl"
+            source_transcript.write_text(
+                '{"type":"user","timestamp":"2026-01-01T00:00:00Z"}\n'
+                '{"type":"assistant","timestamp":"2026-01-01T00:00:01Z"}\n',
+                encoding="utf-8",
+            )
+
+            module = load_session_linker_with_env(appdata, localappdata)
+            original_links_file = module.LINKS_FILE
+            original_backups_dir = module.BACKUPS_DIR
+            original_projects_dir = module.CLAUDE_PROJECTS_DIR
+            module.LINKS_FILE = Path(tmp) / "session_links.json"
+            module.BACKUPS_DIR = Path(tmp) / "backups"
+            module.CLAUDE_PROJECTS_DIR = projects_dir
+            module.BACKUPS_DIR.mkdir()
+            try:
+                source_session = {
+                    "path": source_path,
+                    "accountId": "official-account",
+                    "originAccount": None,
+                    "linkedFromAccount": None,
+                }
+
+                ok, message = module.link_session_to_account(source_session, "threep-account")
+
+                self.assertTrue(ok, message)
+                linked_index = target_workspace / source_path.name
+                linked_data = json.loads(linked_index.read_text(encoding="utf-8"))
+                self.assertNotEqual(linked_data["cliSessionId"], "cli-source")
+                linked_transcript = project_dir / f'{linked_data["cliSessionId"]}.jsonl'
+                self.assertTrue(linked_transcript.exists())
+                self.assertEqual(linked_transcript.read_text(encoding="utf-8"), source_transcript.read_text(encoding="utf-8"))
+                metadata = module.get_link_metadata(linked_index)
+                self.assertEqual(metadata[module.LINKED_SOURCE_CLI_SESSION_ID_KEY], "cli-source")
+            finally:
+                module.LINKS_FILE = original_links_file
+                module.BACKUPS_DIR = original_backups_dir
+                module.CLAUDE_PROJECTS_DIR = original_projects_dir
+
     def test_link_cowork_session_to_account_can_copy_between_roots(self):
         with tempfile.TemporaryDirectory() as tmp:
             appdata = Path(tmp) / "Roaming"
@@ -498,6 +552,27 @@ class SessionLinkerLogicTests(unittest.TestCase):
         targets = session_linker.linked_compare_targets(candidates, "account-a", source)
 
         self.assertEqual(targets, [("account-b", linked_copy)])
+
+    def test_code_sessions_resolving_to_same_transcript_are_not_comparable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            transcript = Path(tmp) / "same-cli.jsonl"
+            transcript.write_text('{"type":"user","timestamp":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")
+            source = make_session("source", "same-cli", 10, "local_source.json")
+            linked_alias = make_session("linked", "same-cli", 8, "local_source.json")
+            original_find_transcript_path = session_linker.find_transcript_path
+            session_linker.find_transcript_path = lambda cli_id: transcript if cli_id == "same-cli" else None
+
+            try:
+                targets = session_linker.linked_compare_targets(
+                    [("account-b", linked_alias)],
+                    "account-a",
+                    source,
+                    mode="code",
+                )
+            finally:
+                session_linker.find_transcript_path = original_find_transcript_path
+
+        self.assertEqual(targets, [])
 
     def test_link_groups_detect_same_cli_id_across_accounts(self):
         source = make_session("source", "same-cli", 10)
