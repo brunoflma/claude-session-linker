@@ -70,16 +70,7 @@ Esta ferramenta roda somente no seu computador.
 
 Ela não envia sessões, mensagens, tokens, caminhos locais ou dados de contas para servidores externos. As alterações são feitas em arquivos locais do Claude Desktop.
 
-Arquivos locais que podem conter dados privados ficam ignorados pelo Git:
-
-- `.app/account_labels.json`
-- `.app/session_links.json`
-- `.app/backups/`
-- `.app/logs/`
-- `.app/venv/`
-- `.claude/`
-- `.conversation-esaa/`
-- `.grok/`
+Arquivos de estado local, backups, logs, ambientes virtuais, metadados de conta e listas de exclusão do mantenedor não devem ser publicados no repositório nem no `.zip` de release. Por isso o projeto não publica `.gitignore`; as exclusões ficam apenas no checkout local do mantenedor.
 
 ## Backups
 
