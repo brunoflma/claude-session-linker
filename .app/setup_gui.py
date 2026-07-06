@@ -47,6 +47,47 @@ INK2 = "#5F5C55"
 INK3 = "#8B8174"
 LINE = "#DED4C5"
 
+
+def _rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
+    radius = min(radius, max(0, (x2 - x1) // 2), max(0, (y2 - y1) // 2))
+    points = [
+        x1 + radius, y1, x2 - radius, y1, x2, y1, x2, y1 + radius,
+        x2, y2 - radius, x2, y2, x2 - radius, y2, x1 + radius, y2,
+        x1, y2, x1, y2 - radius, x1, y1 + radius, x1, y1,
+    ]
+    return canvas.create_polygon(points, smooth=True, splinesteps=16, **kwargs)
+
+
+class RoundedButton(tk.Canvas):
+    def __init__(self, parent, text, bg, hover, fg="#FFFFFF", command=None, width=160, height=36):
+        super().__init__(
+            parent, width=width, height=height, bg=parent.cget("bg"),
+            highlightthickness=0, bd=0, cursor="hand2",
+        )
+        self._bg = bg
+        self._hover = hover
+        self._command = command
+        self._shape = _rounded_rect(self, 1, 1, width - 1, height - 1, 8, fill=bg, outline="")
+        self._label = self.create_text(
+            width // 2, height // 2, text=text, fill=fg, font=("Segoe UI", 10, "bold"),
+        )
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<Button-1>", self._on_click)
+        self.tag_bind(self._shape, "<Button-1>", self._on_click)
+        self.tag_bind(self._label, "<Button-1>", self._on_click)
+
+    def _on_enter(self, _event=None):
+        self.itemconfigure(self._shape, fill=self._hover)
+
+    def _on_leave(self, _event=None):
+        self.itemconfigure(self._shape, fill=self._bg)
+
+    def _on_click(self, _event=None):
+        if self._command:
+            self._command()
+
+
 if sys.platform.startswith("win"):
     try:
         import ctypes
@@ -79,14 +120,15 @@ class SetupApp(tk.Tk):
         self._status_code = None
         self._result_msg = ""
 
-        self.f_title = tkfont.Font(family="Segoe UI", size=18, weight="bold")
+        self.f_title = tkfont.Font(family="Segoe UI", size=17, weight="bold")
+        self.f_hero = tkfont.Font(family="Segoe UI", size=19, weight="bold")
         self.f_sub = tkfont.Font(family="Segoe UI", size=10)
         self.f_status = tkfont.Font(family="Segoe UI", size=11, weight="bold")
         self.f_btn = tkfont.Font(family="Segoe UI", size=10, weight="bold")
         self.f_log = tkfont.Font(family="Consolas", size=9)
 
         self._build()
-        self._center(700, 470)
+        self._center(860, 540)
         self.after(80, self._lift_once)
         if "--self-test-finish" not in sys.argv:
             self.after(350, self._start)
@@ -95,7 +137,7 @@ class SetupApp(tk.Tk):
         shell = tk.Frame(self, bg=PAPER)
         shell.pack(fill="both", expand=True)
 
-        sidebar = tk.Frame(shell, bg=BG, width=250)
+        sidebar = tk.Frame(shell, bg=BG, width=286)
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
         side = tk.Frame(sidebar, bg=BG)
@@ -108,6 +150,8 @@ class SetupApp(tk.Tk):
             fg=TXT,
             font=self.f_title,
             anchor="w",
+            justify="left",
+            wraplength=238,
         ).pack(fill="x")
         tk.Label(
             side,
@@ -117,13 +161,14 @@ class SetupApp(tk.Tk):
             font=self.f_sub,
             anchor="w",
             justify="left",
-            wraplength=205,
+            wraplength=238,
         ).pack(fill="x", pady=(4, 0))
 
-        status_box = tk.Frame(side, bg=SURF, highlightthickness=1, highlightbackground=BRD)
-        status_box.pack(fill="x", pady=(26, 0))
-        status_inner = tk.Frame(status_box, bg=SURF)
-        status_inner.pack(fill="x", padx=12, pady=12)
+        status_canvas = tk.Canvas(side, height=86, bg=BG, highlightthickness=0, bd=0)
+        status_canvas.pack(fill="x", pady=(26, 0))
+        _rounded_rect(status_canvas, 1, 1, 241, 85, 10, fill=SURF, outline=BRD)
+        status_inner = tk.Frame(status_canvas, bg=SURF)
+        status_canvas.create_window(13, 12, window=status_inner, anchor="nw", width=216, height=62)
         self._dot = tk.Canvas(status_inner, width=12, height=12, bg=SURF, highlightthickness=0)
         self._dot.pack(anchor="w")
         self._dot_id = self._dot.create_oval(2, 2, 11, 11, fill=YELLOW, outline="")
@@ -135,7 +180,7 @@ class SetupApp(tk.Tk):
             font=self.f_status,
             anchor="w",
             justify="left",
-            wraplength=190,
+            wraplength=206,
         )
         self._status.pack(fill="x", pady=(8, 0))
 
@@ -158,8 +203,10 @@ class SetupApp(tk.Tk):
             text="Configuração do ambiente",
             bg=PAPER,
             fg=INK,
-            font=tkfont.Font(family="Segoe UI", size=20, weight="bold"),
+            font=self.f_hero,
             anchor="w",
+            justify="left",
+            wraplength=510,
         ).pack(fill="x")
         tk.Label(
             header,
@@ -168,6 +215,8 @@ class SetupApp(tk.Tk):
             fg=INK2,
             font=self.f_sub,
             anchor="w",
+            justify="left",
+            wraplength=510,
         ).pack(fill="x", pady=(2, 0))
 
         self._bar = tk.Canvas(main, height=4, bg=PAPER3, highlightthickness=0)
@@ -188,7 +237,7 @@ class SetupApp(tk.Tk):
             font=self.f_sub,
             anchor="w",
             justify="left",
-            wraplength=390,
+            wraplength=510,
         ).pack(fill="x")
 
         logwrap = tk.Frame(main, bg=PAPER)
@@ -218,24 +267,10 @@ class SetupApp(tk.Tk):
         self._actions = tk.Frame(main, bg=PAPER)
         self._actions.pack(fill="x", padx=22, pady=(0, 18))
 
-    def _flat_button(self, parent, text, bg, hover, fg="#FFFFFF", cmd=None, side="right"):
-        button = tk.Button(
-            parent,
-            text=text,
-            font=self.f_btn,
-            bg=bg,
-            fg=fg,
-            activebackground=hover,
-            activeforeground=fg,
-            relief="flat",
-            borderwidth=0,
-            padx=18,
-            pady=9,
-            cursor="hand2",
-            command=cmd,
-        )
-        button.bind("<Enter>", lambda _event: button.configure(bg=hover))
-        button.bind("<Leave>", lambda _event: button.configure(bg=bg))
+    def _flat_button(self, parent, text, bg, hover, fg="#FFFFFF", cmd=None, side="right", width=None):
+        if width is None:
+            width = max(112, min(230, 24 + len(text) * 8))
+        button = RoundedButton(parent, text, bg, hover, fg=fg, command=cmd, width=width, height=36)
         button.pack(side=side, padx=(8 if side == "right" else 0, 0))
         return button
 
@@ -355,17 +390,17 @@ class SetupApp(tk.Tk):
             self._stop_bar(GREEN)
             if msg:
                 self._replace_log(msg.strip() + "\n")
-            self._flat_button(self._actions, "Abrir Claude Session Linker", GREEN, GREEN_H, cmd=self._open_app)
-            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy)
+            self._flat_button(self._actions, "Abrir Claude Session Linker", GREEN, GREEN_H, cmd=self._open_app, width=230)
+            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy, width=104)
         else:
             self._set_status("Configuração incompleta", RED)
             self._stop_bar(RED)
             if msg:
                 self._append("\n" + msg.strip() + "\n")
             if "python.org" in low or "python" in low:
-                self._flat_button(self._actions, "Baixar Python", YELLOW, "#C99735", fg=BG, cmd=lambda: self._open(PY_DOWNLOAD))
-            self._flat_button(self._actions, "Tentar novamente", BLUE, BLUE_H, cmd=self._retry)
-            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy, side="left")
+                self._flat_button(self._actions, "Baixar Python", YELLOW, "#C99735", fg=BG, cmd=lambda: self._open(PY_DOWNLOAD), width=136)
+            self._flat_button(self._actions, "Tentar novamente", BLUE, BLUE_H, cmd=self._retry, width=160)
+            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy, side="left", width=104)
 
     def _retry(self):
         self._replace_log("")
