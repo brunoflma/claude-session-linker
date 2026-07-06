@@ -60,7 +60,3 @@ Se o setup falhar, veja `.app\logs\setup-result.txt` e rode `00 - Setup Claude S
 Se o erro indicar falta de permissão para gravar em `.app`, mova a pasta do projeto para um local gravável do seu usuário e rode o setup de novo.
 
 Se uma sessão vinculada não aparecer no Claude Desktop, feche o Claude Desktop completamente pela bandeja do sistema e abra novamente na conta de destino.
-
-## Regra de publicação
-
-Não publique dados locais, backups, logs, ambientes virtuais, metadados privados nem arquivos que revelem listas internas de exclusão, incluindo `.gitignore`. As exclusões do mantenedor devem ficar apenas no checkout local e o `.zip` de release deve conter somente os arquivos necessários para instalar e executar o aplicativo.

@@ -70,8 +70,6 @@ Esta ferramenta roda somente no seu computador.
 
 Ela não envia sessões, mensagens, tokens, caminhos locais ou dados de contas para servidores externos. As alterações são feitas em arquivos locais do Claude Desktop.
 
-Arquivos de estado local, backups, logs, ambientes virtuais, metadados de conta e listas de exclusão do mantenedor não devem ser publicados no repositório nem no `.zip` de release. Por isso o projeto não publica `.gitignore`; as exclusões ficam apenas no checkout local do mantenedor.
-
 ## Backups
 
 Antes de vincular sessões, o app cria backups em `.app\backups`.
