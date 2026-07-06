@@ -4,14 +4,16 @@ Claude Session Linker (customtkinter)
 Links Claude Desktop sessions across your different Claude accounts on this
 machine -- for both the "Code" tab and Cowork (Agent Mode).
 
-Background, Code tab: Claude Desktop keeps a per-account index at
+Background, Code tab: Claude Desktop keeps a per-account index under each
+Claude data root, usually:
   %APPDATA%\\Claude\\claude-code-sessions\\<accountUUID>\\<workspaceUUID>\\local_*.json
 Each index file only holds metadata (title, cwd, model, ...) plus a
 "cliSessionId" pointer to the real transcript, which lives account-agnostic
 at:
   %USERPROFILE%\\.claude\\projects\\<cwd-hash>\\<cliSessionId>.jsonl
 
-Background, Cowork: Desktop keeps an equivalent per-account index at
+Background, Cowork: Desktop keeps an equivalent per-account index under the
+same Claude data roots, usually:
   %APPDATA%\\Claude\\local-agent-mode-sessions\\<accountUUID>\\<workspaceUUID>\\local_*.json
 but unlike Code, there is no account-agnostic transcript elsewhere -- the
 conversation (audit.jsonl), uploads, and command outputs live inside a
@@ -32,7 +34,9 @@ This tool:
      account's sidebar too.
 
 Safety:
-  - Never deletes or moves anything -- only copies.
+  - Link actions never delete or move anything -- only copy.
+  - Remove actions delete only the selected account's local session files,
+    always after creating a backup.
   - Every Code link action zips a timestamped backup of the whole
     claude-code-sessions folder into .app\\backups\\ before writing.
   - Every Cowork link action zips a timestamped backup of just the target
@@ -154,14 +158,86 @@ BADGE_BLUE_BG = "#2F6582"
 BADGE_TEXT = "#FFFFFF"
 SP = 16
 WIN_TITLE = "Claude Session Linker"
-APP_VERSION = "1.1"
+APP_VERSION = "1.5"
 DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 
 # ---------------------------------------------------------------------------
 # Data layer
 # ---------------------------------------------------------------------------
 APPDATA = Path(os.environ["APPDATA"])
-CLAUDE_DIR = APPDATA / "Claude"
+LOCALAPPDATA = Path(os.environ["LOCALAPPDATA"]) if os.environ.get("LOCALAPPDATA") else None
+CLAUDE_DIR_ENV = "CLAUDE_SESSION_LINKER_CLAUDE_DIR"
+
+
+def _unique_paths(paths: list[Path]) -> list[Path]:
+    seen = set()
+    unique = []
+    for path in paths:
+        key = str(path).rstrip("\\/").casefold()
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
+def is_claude_data_dir(path: Path) -> bool:
+    return path.is_dir() and any(
+        (path / child).exists()
+        for child in ("config.json", "claude-code-sessions", "local-agent-mode-sessions")
+    )
+
+
+def claude_dir_activity_time(path: Path) -> float:
+    probes = [
+        path / "config.json",
+        path / "claude-code-sessions",
+        path / "local-agent-mode-sessions",
+        path,
+    ]
+    mtimes = []
+    for probe in probes:
+        try:
+            if probe.exists():
+                mtimes.append(probe.stat().st_mtime)
+        except OSError:
+            continue
+    return max(mtimes, default=0.0)
+
+
+def discover_claude_dirs(appdata: Path, localappdata: Path | None = None) -> list[Path]:
+    candidates = [appdata / "Claude"]
+    if localappdata is not None:
+        candidates.extend([localappdata / "Claude-3p", localappdata / "Claude"])
+        try:
+            candidates.extend(sorted(localappdata.glob("Claude*")))
+        except OSError:
+            pass
+    valid = [path for path in _unique_paths(candidates) if is_claude_data_dir(path)]
+    valid.sort(key=claude_dir_activity_time, reverse=True)
+    return valid
+
+
+def resolve_claude_dir(
+    appdata: Path,
+    localappdata: Path | None = None,
+    explicit_dir: str | os.PathLike | None = None,
+) -> Path:
+    return resolve_claude_dirs(appdata, localappdata, explicit_dir)[0]
+
+
+def resolve_claude_dirs(
+    appdata: Path,
+    localappdata: Path | None = None,
+    explicit_dir: str | os.PathLike | None = None,
+) -> list[Path]:
+    if explicit_dir:
+        return [Path(explicit_dir).expanduser()]
+    candidates = discover_claude_dirs(appdata, localappdata)
+    return candidates if candidates else [appdata / "Claude"]
+
+
+CLAUDE_DIRS = resolve_claude_dirs(APPDATA, LOCALAPPDATA, os.environ.get(CLAUDE_DIR_ENV))
+CLAUDE_DIR = CLAUDE_DIRS[0]
 SESSIONS_DIR = CLAUDE_DIR / "claude-code-sessions"
 COWORK_SESSIONS_DIR = CLAUDE_DIR / "local-agent-mode-sessions"
 CONFIG_JSON = CLAUDE_DIR / "config.json"
@@ -219,13 +295,18 @@ def source_origin_account(session: dict) -> str:
 
 
 def get_active_account_uuid():
-    if not CONFIG_JSON.exists():
-        return None
-    try:
-        data = json.loads(CONFIG_JSON.read_text(encoding="utf-8"))
-        return data.get("lastKnownAccountUuid")
-    except Exception:
-        return None
+    for claude_dir in CLAUDE_DIRS:
+        config_json = claude_dir / "config.json"
+        if not config_json.exists():
+            continue
+        try:
+            data = json.loads(config_json.read_text(encoding="utf-8"))
+            account_uuid = data.get("lastKnownAccountUuid")
+            if account_uuid:
+                return account_uuid
+        except Exception:
+            continue
+    return None
 
 
 _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE_NO_WINDOW
@@ -249,39 +330,45 @@ def scan_sessions() -> dict:
     """{accountUUID: [ {path, sessionId, cliSessionId, cwd, title,
     lastActivityAt, isArchived, workspaceUUID}, ... ] } sorted newest first."""
     result: dict[str, list[dict]] = {}
-    if not SESSIONS_DIR.exists():
-        return result
-    for account_dir in SESSIONS_DIR.iterdir():
-        if not account_dir.is_dir():
+    for claude_dir in CLAUDE_DIRS:
+        sessions_dir = claude_dir / "claude-code-sessions"
+        if not sessions_dir.exists():
             continue
-        account_id = account_dir.name
-        sessions = []
-        for workspace_dir in account_dir.iterdir():
-            if not workspace_dir.is_dir():
+        for account_dir in sessions_dir.iterdir():
+            if not account_dir.is_dir():
                 continue
-            for f in workspace_dir.glob("local_*.json"):
-                try:
-                    data = json.loads(f.read_text(encoding="utf-8"))
-                except Exception:
+            account_id = account_dir.name
+            account_sessions = []
+            for workspace_dir in account_dir.iterdir():
+                if not workspace_dir.is_dir():
                     continue
-                link_metadata = get_link_metadata(f)
-                sessions.append({
-                    "path": f,
-                    "data_dir": None,
-                    "accountId": account_id,
-                    "sessionId": data.get("sessionId", f.stem),
-                    "cliSessionId": data.get("cliSessionId", ""),
-                    "cwd": data.get("cwd", ""),
-                    "title": data.get("title") or "(sem título)",
-                    "lastActivityAt": data.get("lastActivityAt", 0),
-                    "isArchived": data.get("isArchived", False),
-                    "workspaceUUID": workspace_dir.name,
-                    "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
-                    "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
-                    "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
-                })
+                for f in workspace_dir.glob("local_*.json"):
+                    try:
+                        data = json.loads(f.read_text(encoding="utf-8"))
+                    except Exception:
+                        continue
+                    link_metadata = get_link_metadata(f)
+                    account_sessions.append({
+                        "path": f,
+                        "data_dir": None,
+                        "accountId": account_id,
+                        "claudeDir": claude_dir,
+                        "sessionsDir": sessions_dir,
+                        "sessionId": data.get("sessionId", f.stem),
+                        "cliSessionId": data.get("cliSessionId", ""),
+                        "cwd": data.get("cwd", ""),
+                        "title": data.get("title") or "(sem título)",
+                        "lastActivityAt": data.get("lastActivityAt", 0),
+                        "isArchived": data.get("isArchived", False),
+                        "workspaceUUID": workspace_dir.name,
+                        "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
+                        "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
+                        "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
+                    })
+            if account_sessions:
+                result.setdefault(account_id, []).extend(account_sessions)
+    for sessions in result.values():
         sessions.sort(key=lambda s: s["lastActivityAt"], reverse=True)
-        result[account_id] = sessions
     return result
 
 
@@ -295,40 +382,46 @@ def scan_cowork_sessions() -> dict:
     whenever a session is linked ("data_dir" below).
     """
     result: dict[str, list[dict]] = {}
-    if not COWORK_SESSIONS_DIR.exists():
-        return result
-    for account_dir in COWORK_SESSIONS_DIR.iterdir():
-        if not account_dir.is_dir():
+    for claude_dir in CLAUDE_DIRS:
+        cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
+        if not cowork_sessions_dir.exists():
             continue
-        account_id = account_dir.name
-        sessions = []
-        for workspace_dir in account_dir.iterdir():
-            if not workspace_dir.is_dir():
+        for account_dir in cowork_sessions_dir.iterdir():
+            if not account_dir.is_dir():
                 continue
-            for f in workspace_dir.glob("local_*.json"):
-                try:
-                    data = json.loads(f.read_text(encoding="utf-8"))
-                except Exception:
+            account_id = account_dir.name
+            account_sessions = []
+            for workspace_dir in account_dir.iterdir():
+                if not workspace_dir.is_dir():
                     continue
-                link_metadata = get_link_metadata(f)
-                data_dir = workspace_dir / f.stem
-                sessions.append({
-                    "path": f,
-                    "data_dir": data_dir if data_dir.is_dir() else None,
-                    "accountId": account_id,
-                    "sessionId": data.get("sessionId", f.stem),
-                    "cliSessionId": data.get("cliSessionId", ""),
-                    "cwd": data.get("cwd", ""),
-                    "title": data.get("title") or "(sem título)",
-                    "lastActivityAt": data.get("lastActivityAt", 0),
-                    "isArchived": data.get("isArchived", False),
-                    "workspaceUUID": workspace_dir.name,
-                    "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
-                    "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
-                    "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
-                })
+                for f in workspace_dir.glob("local_*.json"):
+                    try:
+                        data = json.loads(f.read_text(encoding="utf-8"))
+                    except Exception:
+                        continue
+                    link_metadata = get_link_metadata(f)
+                    data_dir = workspace_dir / f.stem
+                    account_sessions.append({
+                        "path": f,
+                        "data_dir": data_dir if data_dir.is_dir() else None,
+                        "accountId": account_id,
+                        "claudeDir": claude_dir,
+                        "sessionsDir": cowork_sessions_dir,
+                        "sessionId": data.get("sessionId", f.stem),
+                        "cliSessionId": data.get("cliSessionId", ""),
+                        "cwd": data.get("cwd", ""),
+                        "title": data.get("title") or "(sem título)",
+                        "lastActivityAt": data.get("lastActivityAt", 0),
+                        "isArchived": data.get("isArchived", False),
+                        "workspaceUUID": workspace_dir.name,
+                        "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
+                        "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
+                        "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
+                    })
+            if account_sessions:
+                result.setdefault(account_id, []).extend(account_sessions)
+    for sessions in result.values():
         sessions.sort(key=lambda s: s["lastActivityAt"], reverse=True)
-        result[account_id] = sessions
     return result
 
 
@@ -342,8 +435,12 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     return zip_path
 
 
-def backup_sessions_dir() -> Path:
-    return backup_dir_tree(SESSIONS_DIR, "claude-code-sessions")
+def backup_sessions_dir(sessions_dir: Path = SESSIONS_DIR) -> Path:
+    label = "claude-code-sessions"
+    if sessions_dir != SESSIONS_DIR:
+        profile = sessions_dir.parent.name.replace(" ", "-")
+        label = f"{profile}-claude-code-sessions"
+    return backup_dir_tree(sessions_dir, label)
 
 
 def find_target_workspace_dir(base_dir: Path, account_id: str):
@@ -355,6 +452,14 @@ def find_target_workspace_dir(base_dir: Path, account_id: str):
         return None
     workspace_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
     return workspace_dirs[0]
+
+
+def find_target_workspace_dir_in_roots(folder_name: str, account_id: str):
+    for claude_dir in CLAUDE_DIRS:
+        target_ws = find_target_workspace_dir(claude_dir / folder_name, account_id)
+        if target_ws is not None:
+            return target_ws
+    return None
 
 
 def ensure_index_linked(src_path: Path, dest_path: Path, source_account_id: str, origin_account_id: str) -> bool:
@@ -370,8 +475,66 @@ def copy_index_with_link_metadata(src_path: Path, dest_path: Path, source_accoun
     record_link_metadata(dest_path, source_account_id, origin_account_id or source_account_id)
 
 
+def remove_link_metadata(path: Path) -> None:
+    registry = load_link_registry()
+    key = _link_key(path)
+    if key in registry:
+        del registry[key]
+        save_link_registry(registry)
+
+
+def _sessions_dir_for_session(session: dict, fallback_folder_name: str) -> Path:
+    sessions_dir = session.get("sessionsDir")
+    if sessions_dir:
+        return Path(sessions_dir)
+    path = Path(session["path"])
+    try:
+        return path.parents[2]
+    except IndexError:
+        return path.parent.parent.parent / fallback_folder_name
+
+
+def _is_safe_cowork_data_dir(index_path: Path, data_dir: Path) -> bool:
+    try:
+        return data_dir.parent.resolve() == index_path.parent.resolve() and data_dir.name == index_path.stem
+    except OSError:
+        return False
+
+
+def remove_session_from_account(session: dict, mode: str):
+    index_path = Path(session["path"])
+    if not index_path.exists():
+        return False, "Essa sessão já não existe mais nesta conta."
+
+    try:
+        if mode == "cowork":
+            data_dir = session.get("data_dir")
+            data_dir = Path(data_dir) if data_dir else index_path.with_suffix("")
+            if data_dir.exists() and not _is_safe_cowork_data_dir(index_path, data_dir):
+                return False, "Remoção cancelada: pasta de dados Cowork inesperada."
+            backup_path = backup_dir_tree(index_path.parent, "cowork-workspace")
+            if data_dir.is_dir():
+                shutil.rmtree(data_dir)
+            index_path.unlink()
+            remove_link_metadata(index_path)
+        else:
+            sessions_dir = _sessions_dir_for_session(session, "claude-code-sessions")
+            backup_path = backup_sessions_dir(sessions_dir)
+            index_path.unlink()
+            remove_link_metadata(index_path)
+    except Exception as e:
+        backup_info = f" (backup salvo em {backup_path.name})" if "backup_path" in locals() else ""
+        return False, f"Falha ao remover sessão{backup_info}: {e}"
+
+    if mode == "cowork":
+        removed = "Sessão removida desta conta."
+    else:
+        removed = "Sessão removida desta conta. Transcript compartilhado preservado."
+    return True, f"{removed}\nBackup salvo em backups\\{backup_path.name}."
+
+
 def link_session_to_account(session: dict, target_account_id: str):
-    target_ws = find_target_workspace_dir(SESSIONS_DIR, target_account_id)
+    target_ws = find_target_workspace_dir_in_roots("claude-code-sessions", target_account_id)
     if target_ws is None:
         return False, (
             "Essa conta ainda não tem uma pasta de workspace em "
@@ -389,7 +552,7 @@ def link_session_to_account(session: dict, target_account_id: str):
                 "e manteve a origem original visível na lista."
             )
 
-        backup_path = backup_sessions_dir()
+        backup_path = backup_sessions_dir(target_ws.parent.parent)
         ensure_index_linked(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
     except Exception as e:
         backup_info = f" (backup salvo em {backup_path.name})" if "backup_path" in locals() else ""
@@ -403,7 +566,7 @@ def link_session_to_account(session: dict, target_account_id: str):
 
 
 def link_cowork_session_to_account(session: dict, target_account_id: str):
-    target_ws = find_target_workspace_dir(COWORK_SESSIONS_DIR, target_account_id)
+    target_ws = find_target_workspace_dir_in_roots("local-agent-mode-sessions", target_account_id)
     if target_ws is None:
         return False, (
             "Essa conta ainda não tem uma pasta de workspace em "
@@ -561,7 +724,16 @@ def read_session_progress(session: dict, mode: str) -> dict:
     }
 
 
-def find_possible_duplicates(sessions_by_account: dict) -> dict:
+def conversation_file_available(session: dict, mode: str | None = None) -> bool:
+    if mode is None:
+        return True
+    if mode == "cowork":
+        data_dir = session.get("data_dir")
+        return bool(data_dir and data_dir.is_dir() and (data_dir / "audit.jsonl").exists())
+    return find_transcript_path(session.get("cliSessionId", "")) is not None
+
+
+def find_possible_duplicates(sessions_by_account: dict, mode: str | None = None) -> dict:
     """Groups sessions by normalized cwd across ALL accounts. Returns
     {cwd: [(account_id, session), ...]} only for cwds where 2+ DIFFERENT
     accounts each have a session with a DIFFERENT cliSessionId -- i.e. two
@@ -574,6 +746,8 @@ def find_possible_duplicates(sessions_by_account: dict) -> dict:
         for s in sessions:
             cwd = (s.get("cwd") or "").rstrip("\\/").lower()
             if not cwd:
+                continue
+            if not conversation_file_available(s, mode):
                 continue
             by_cwd.setdefault(cwd, []).append((account_id, s))
 
@@ -831,7 +1005,7 @@ class SessionLinkerApp(ctk.CTk):
             return
         self.active_account = active_account
         self.sessions_by_account = sessions_by_account
-        self.duplicates = find_possible_duplicates(sessions_by_account)
+        self.duplicates = find_possible_duplicates(sessions_by_account, mode)
         self.link_groups = find_linked_session_groups(sessions_by_account)
         self._desktop_warning.configure(
             text="⚠ Feche o Claude Desktop antes de vincular." if running else ""
@@ -1083,7 +1257,7 @@ class SessionLinkerApp(ctk.CTk):
 
         actions = ctk.CTkFrame(inner, fg_color="transparent")
         actions.grid(row=row_i, column=0, sticky="ew")
-        for col in range(2):
+        for col in range(3):
             actions.grid_columnconfigure(col, weight=1, uniform="session_actions")
         ctk.CTkButton(
             actions, text="🔗 Vincular conta", height=32, fg_color=GREEN, hover_color=GREEN_H,
@@ -1095,14 +1269,120 @@ class SessionLinkerApp(ctk.CTk):
             text_color=TXT, font=self._f_x, corner_radius=6,
             command=lambda s=session, a=account_id, m=card_mode: self._open_compare_picker((a, s), m),
         )
-        compare_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        compare_btn.grid(row=0, column=1, sticky="ew", padx=6)
+        remove_btn = ctk.CTkButton(
+            actions, text="Remover", height=32, fg_color=RED, hover_color=RED_H,
+            text_color="#FFFFFF", font=self._f_x, corner_radius=6,
+            command=lambda s=session, a=account_id, m=card_mode: self._open_remove_dialog(s, a, m),
+        )
+        remove_btn.grid(row=0, column=2, sticky="ew", padx=(6, 0))
         self._add_tooltip(
             compare_btn,
             "Compara esta sessão com a cópia vinculada em outra conta. "
             "Se não houver vínculo direto, permite escolher outra sessão.",
         )
+        self._add_tooltip(
+            remove_btn,
+            "Remove esta sessão apenas desta conta, com backup antes da alteração.",
+        )
 
     # -- actions ----------------------------------------------------------
+
+    def _open_remove_dialog(self, session, account_id, mode=None):
+        mode = mode or self.session_mode
+        dialog_w, dialog_h = 560, 420
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Remover sessão")
+        dialog.configure(fg_color=BG)
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        self._center_toplevel(dialog, dialog_w, dialog_h)
+        dialog.grab_set()
+        if ICON_PATH.exists():
+            try:
+                dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
+            except Exception:
+                pass
+
+        box = ctk.CTkFrame(dialog, fg_color=SURF, corner_radius=8, border_width=1, border_color=BRD)
+        box.pack(fill="both", expand=True, padx=16, pady=16)
+        ctk.CTkLabel(box, text="Remover sessão desta conta?", font=self._f_b, text_color=TXT).pack(anchor="w", padx=18, pady=(18, 6))
+        ctk.CTkLabel(
+            box, text=session["title"], font=self._f_s, text_color=TXT2,
+            wraplength=480, justify="left",
+        ).pack(anchor="w", padx=18)
+        ctk.CTkLabel(
+            box, text=f"Conta: {self._account_label(account_id)}", font=self._f_x, text_color=TXT3,
+            wraplength=480, justify="left",
+        ).pack(anchor="w", padx=18, pady=(4, 0))
+
+        if mode == "cowork":
+            detail = (
+                "Será criado um backup e depois serão removidos o índice desta conta "
+                "e a pasta local de dados do Cowork para esta sessão."
+            )
+        else:
+            detail = (
+                "Será criado um backup e depois será removido só o índice desta conta. "
+                "O transcript compartilhado do Code não será apagado."
+            )
+        ctk.CTkLabel(
+            box, text=detail, font=self._f_x, text_color=TXT2,
+            wraplength=500, justify="left",
+        ).pack(anchor="w", padx=18, pady=(16, 0))
+
+        warning = ctk.CTkFrame(box, fg_color="#311A18", corner_radius=6, border_width=1, border_color=RED)
+        warning.pack(fill="x", padx=18, pady=(16, 0))
+        ctk.CTkLabel(
+            warning, text="Feche o Claude Desktop antes de remover para evitar que ele recrie ou sobrescreva arquivos.",
+            font=self._f_x, text_color="#FFB3A8", anchor="w", justify="left", wraplength=470,
+        ).pack(anchor="w", padx=12, pady=10, fill="x")
+
+        status = ctk.CTkLabel(box, text="", font=self._f_x, text_color=TXT2, anchor="w", justify="left", wraplength=500)
+        status.pack(anchor="w", padx=18, pady=(10, 0), fill="x")
+
+        def do_remove():
+            if is_desktop_running():
+                status.configure(text="Claude Desktop está aberto. Feche pela bandeja do sistema e clique novamente para confirmar.", text_color=YELLOW)
+                if not getattr(dialog, "_confirmed_running", False):
+                    dialog._confirmed_running = True
+                    return
+            remove_btn.configure(state="disabled")
+            cancel_btn.configure(state="disabled")
+            status.configure(text="Removendo e criando backup...", text_color=TXT2)
+
+            def worker():
+                ok, msg = remove_session_from_account(session, mode)
+
+                def apply():
+                    if not dialog.winfo_exists():
+                        return
+                    status.configure(text=msg, text_color=GREEN if ok else RED)
+                    if ok:
+                        dialog._remove_completed = True
+                        warning.pack_forget()
+                        remove_btn.pack_forget()
+                        cancel_btn.configure(text="Fechar", state="normal", fg_color=GREEN, hover_color=GREEN_H, text_color=INK, width=144)
+                        cancel_btn.pack_forget()
+                        cancel_btn.pack(side="right", pady=8)
+                        self.refresh()
+                    else:
+                        remove_btn.configure(state="normal")
+                        cancel_btn.configure(state="normal")
+
+                self.after(0, apply)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        def close_dialog():
+            dialog.destroy()
+            if getattr(dialog, "_remove_completed", False):
+                self.refresh()
+
+        actions = self._dialog_actions(box)
+        actions.pack(fill="x", padx=18, pady=(6, 18))
+        cancel_btn = self._dialog_button(actions, "Cancelar", close_dialog, "secondary", "left")
+        remove_btn = self._dialog_button(actions, "Remover", do_remove, "danger", "right")
 
     def _open_link_dialog(self, session, source_account_id, mode=None):
         mode = mode or self.session_mode
@@ -1111,8 +1391,8 @@ class SessionLinkerApp(ctk.CTk):
             self._toast("Ainda não há outra conta detectada neste computador.")
             return
 
-        dialog_w = 480
-        dialog_h = min(560, 280 + 44 * len(others))
+        dialog_w = 560
+        dialog_h = min(540, 320 + 48 * len(others))
         dialog = ctk.CTkToplevel(self)
         dialog.title("Vincular sessão")
         dialog.configure(fg_color=BG)
@@ -1131,11 +1411,11 @@ class SessionLinkerApp(ctk.CTk):
 
         box = ctk.CTkFrame(dialog, fg_color=SURF, corner_radius=8, border_width=1, border_color=BRD)
         box.pack(fill="both", expand=True, padx=16, pady=16)
-        ctk.CTkLabel(box, text=session["title"], font=self._f_b, text_color=TXT, wraplength=420, justify="left").pack(anchor="w", padx=16, pady=(16, 4))
+        ctk.CTkLabel(box, text=session["title"], font=self._f_b, text_color=TXT, wraplength=500, justify="left").pack(anchor="w", padx=18, pady=(18, 6))
         ctk.CTkLabel(
             box, text=f'De: {self._account_label(source_account_id)}', font=self._f_x, text_color=TXT3,
-        ).pack(anchor="w", padx=16)
-        ctk.CTkLabel(box, text="Vincular esta sessão à conta:", font=self._f_s, text_color=TXT2).pack(anchor="w", padx=16, pady=(10, 6))
+        ).pack(anchor="w", padx=18)
+        ctk.CTkLabel(box, text="Vincular esta sessão à conta:", font=self._f_s, text_color=TXT2).pack(anchor="w", padx=18, pady=(18, 8))
 
         def display_name(a):
             tag = " · ativa agora" if a == self.active_account else ""
@@ -1146,7 +1426,7 @@ class SessionLinkerApp(ctk.CTk):
         # and it matches the same row style used in the sidebar.
         selected = {"id": others[0]}
         target_rows = ctk.CTkFrame(box, fg_color="transparent")
-        target_rows.pack(padx=16, pady=(0, 10), fill="x")
+        target_rows.pack(padx=18, pady=(0, 12), fill="x")
         row_buttons: dict[str, "ctk.CTkButton"] = {}
 
         def select_target(account_id):
@@ -1168,18 +1448,32 @@ class SessionLinkerApp(ctk.CTk):
             row_buttons[a] = b
         select_target(others[0])
 
-        status = ctk.CTkLabel(box, text="", font=self._f_x, text_color=TXT2, anchor="w", justify="left", wraplength=420)
-        status.pack(anchor="w", padx=16, fill="x")
+        status_box = ctk.CTkFrame(box, fg_color=SURF2, corner_radius=6, border_width=1, border_color=BRD)
+        status = ctk.CTkLabel(
+            status_box, text="", font=self._f_x, text_color=TXT2,
+            anchor="w", justify="left", wraplength=480,
+        )
+        status.pack(anchor="w", padx=12, pady=10, fill="x")
+        status_visible = {"value": False}
+
+        def show_status(text, text_color=TXT2, bg=SURF2, border=BRD):
+            if not status_visible["value"]:
+                status_box.pack(fill="x", padx=18, pady=(0, 12))
+                status_visible["value"] = True
+            status_box.configure(fg_color=bg, border_color=border)
+            status.configure(text=text, text_color=text_color)
 
         def do_link():
             target_id = selected["id"]
             if not target_id:
                 return
             if is_desktop_running():
-                status.configure(
-                    text="⚠ Claude Desktop está aberto. Feche pela bandeja do sistema antes de continuar, "
-                         "ou clique de novo para prosseguir mesmo assim.",
-                    text_color=YELLOW,
+                show_status(
+                    "⚠ Claude Desktop está aberto. Feche pela bandeja do sistema antes de continuar, "
+                    "ou clique de novo para prosseguir mesmo assim.",
+                    YELLOW,
+                    WARN_BG,
+                    AMBER,
                 )
                 if not getattr(dialog, "_confirmed_running", False):
                     dialog._confirmed_running = True
@@ -1188,7 +1482,7 @@ class SessionLinkerApp(ctk.CTk):
             # Cowork sessions can carry MBs of uploads/outputs, so the copy
             # runs off the UI thread -- Code sessions are tiny JSON files
             # and finish before the "Vinculando…" state is even noticeable.
-            status.configure(text="Vinculando…", text_color=TXT2)
+            show_status("Vinculando…", TXT2, SURF2, BRD)
             link_btn.configure(state="disabled")
 
             def worker():
@@ -1200,11 +1494,26 @@ class SessionLinkerApp(ctk.CTk):
                 def apply():
                     if not dialog.winfo_exists():
                         return
-                    status.configure(text=msg, text_color=GREEN if ok else RED)
+                    show_status(
+                        msg,
+                        GREEN if ok else RED,
+                        "#102018" if ok else "#311A18",
+                        GREEN if ok else RED,
+                    )
                     if ok:
                         dialog._link_completed = True
-                        close_btn.configure(text="Fechar")
-                        link_btn.configure(text="Vinculado", state="disabled")
+                        for button in row_buttons.values():
+                            button.configure(state="disabled")
+                        link_btn.pack_forget()
+                        close_btn.configure(
+                            text="Fechar",
+                            fg_color=GREEN,
+                            hover_color=GREEN_H,
+                            text_color=INK,
+                            width=144,
+                        )
+                        close_btn.pack_forget()
+                        close_btn.pack(side="right", pady=8)
                         self.refresh()
                     else:
                         link_btn.configure(state="normal")
@@ -1219,7 +1528,7 @@ class SessionLinkerApp(ctk.CTk):
                 self.refresh()
 
         actions = self._dialog_actions(box)
-        actions.pack(fill="x", padx=16, pady=(12, 16))
+        actions.pack(fill="x", padx=18, pady=(4, 18))
         close_btn = self._dialog_button(actions, "Cancelar", close_dialog, "secondary", "left")
         link_btn = self._dialog_button(actions, "Vincular", do_link, "primary", "right")
 
@@ -1405,6 +1714,8 @@ class SessionLinkerApp(ctk.CTk):
     def _dialog_button(self, parent, text, command, kind="secondary", side="right"):
         if kind == "primary":
             fg, hover, color, width = GREEN, GREEN_H, INK, 136
+        elif kind == "danger":
+            fg, hover, color, width = RED, RED_H, "#FFFFFF", 136
         else:
             fg, hover, color, width = SURF2, SURF3, TXT2, 116
         btn = ctk.CTkButton(

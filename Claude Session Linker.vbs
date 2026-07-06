@@ -1,5 +1,5 @@
 ' ============================================================================
-' Claude Session Linker.vbs - Launcher v1.0
+' Claude Session Linker.vbs - Launcher v1.5
 ' ============================================================================
 Set objShell = WScript.CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")
@@ -90,7 +90,7 @@ End If
 If pythonExe = "" Then
     MsgBox "Ambiente Python não encontrado." & vbCrLf & vbCrLf & _
            "Instale o Python 3.10+ em C:\Python3XX\ ou pelo instalador oficial, " & _
-           "ou rode 'powershell -File .app\setup.ps1' para criar o venv isolado.", _
+           "ou dê duplo clique em '00 - Setup Claude Session Linker.vbs' para criar o venv isolado.", _
            vbCritical, "Claude Session Linker - inicialização"
     WScript.Quit 1
 End If
