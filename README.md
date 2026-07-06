@@ -46,7 +46,7 @@ Não é necessário:
 3. Dê duplo clique em `00 - Setup Claude Session Linker.vbs`.
 4. Quando o setup terminar, abra com duplo clique em `Claude Session Linker.vbs`.
 
-O setup cria o ambiente Python isolado em `.app\venv` e instala as dependências automaticamente.
+O setup abre uma janela gráfica, cria o ambiente Python isolado em `.app\venv` e instala as dependências automaticamente.
 
 Para instalação por Git, clone o repositório e rode o mesmo `00 - Setup Claude Session Linker.vbs`.
 
@@ -111,7 +111,7 @@ Feche o Claude Desktop completamente pela bandeja do sistema e abra novamente lo
 
 ### O setup falhou
 
-Veja o arquivo:
+Use a própria janela do setup para ver o progresso e tentar novamente. O log final também fica em:
 
 ```text
 .app\logs\setup-result.txt

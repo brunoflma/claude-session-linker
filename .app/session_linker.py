@@ -111,8 +111,8 @@ except Exception as exc:
             0,
             "Dependências do Claude Session Linker ausentes.\n\n"
             f"Erro: {exc}\n\n"
-            "Abra um terminal nesta pasta e execute:\n"
-            "    powershell -File .app\\setup.ps1",
+            "Execute novamente:\n"
+            "    00 - Setup Claude Session Linker.vbs",
             "Claude Session Linker - dependências ausentes",
             0x10,  # MB_ICONERROR
         )

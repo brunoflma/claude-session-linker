@@ -7,10 +7,10 @@ Este guia cobre o fluxo normal para instalar e usar o Claude Session Linker 1.5 
 1. Baixe o `.zip` da versão mais recente em Releases.
 2. Extraia a pasta em um local permanente. Não execute de dentro do visualizador de zip do Windows.
 3. Dê duplo clique em `00 - Setup Claude Session Linker.vbs`.
-4. Se o Windows perguntar, permita a execução do script local.
+4. Acompanhe o progresso na janela de configuração.
 5. Ao final, escolha abrir o aplicativo ou dê duplo clique em `Claude Session Linker.vbs`.
 
-O setup não precisa de administrador. Ele cria `.app\venv`, instala `customtkinter`, `darkdetect` e `pillow`, e grava o resultado em `.app\logs\setup-result.txt`.
+O setup não precisa de administrador. Ele cria `.app\venv`, instala `customtkinter`, `darkdetect` e `pillow`, mostra o progresso ao vivo e grava o resultado em `.app\logs\setup-result.txt`.
 
 ## Preparar o Claude Desktop
 
@@ -55,7 +55,7 @@ wscript "Claude Session Linker.vbs"
 
 Backups ficam em `.app\backups`.
 
-Se o setup falhar, veja `.app\logs\setup-result.txt` e rode `00 - Setup Claude Session Linker.vbs` novamente.
+Se o setup falhar, use `Tentar novamente` na janela de configuração. O resultado também fica em `.app\logs\setup-result.txt`.
 
 Se o erro indicar falta de permissão para gravar em `.app`, mova a pasta do projeto para um local gravável do seu usuário e rode o setup de novo.
 
