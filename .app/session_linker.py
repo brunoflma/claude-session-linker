@@ -48,6 +48,7 @@ Safety:
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -160,7 +161,7 @@ BADGE_BLUE_BG = "#2F6582"
 BADGE_TEXT = "#FFFFFF"
 SP = 16
 WIN_TITLE = "Claude Session Linker"
-APP_VERSION = "1.6"
+APP_VERSION = "1.6.1"
 DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 
 # ---------------------------------------------------------------------------
@@ -532,6 +533,70 @@ def copy_index_with_link_metadata(src_path: Path, dest_path: Path, source_accoun
     record_link_metadata(dest_path, source_account_id, origin_account_id or source_account_id)
 
 
+def claude_project_dir_name(path: Path | str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", str(path)).strip("-")
+
+
+def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
+    replacements = {old: new for old, new in replacements.items() if old and old != new}
+    if not root.is_dir() or not replacements:
+        return
+    text_suffixes = {".json", ".jsonl", ".md", ".txt", ".yml", ".yaml", ".toml", ".lock", ""}
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in text_suffixes:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        updated = text
+        for old, new in replacements.items():
+            updated = updated.replace(old, new)
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+
+
+def normalize_cowork_session_copy(
+    src_path: Path,
+    dest_path: Path,
+    src_data_dir: Path | None,
+    dest_data_dir: Path | None,
+    source_account_id: str,
+    origin_account_id: str,
+) -> None:
+    data = _read_index_json(src_path)
+    if dest_data_dir:
+        data["cwd"] = str(dest_data_dir / "outputs")
+    for key in ("error", "errorAt", "errorCategory", "errorVersion"):
+        data.pop(key, None)
+    dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    record_link_metadata(dest_path, source_account_id, origin_account_id)
+
+    if not src_data_dir or not dest_data_dir or not dest_data_dir.is_dir():
+        return
+
+    src_outputs = src_data_dir / "outputs"
+    dest_outputs = dest_data_dir / "outputs"
+    src_project_name = claude_project_dir_name(src_outputs)
+    dest_project_name = claude_project_dir_name(dest_outputs)
+    projects_dir = dest_data_dir / ".claude" / "projects"
+    old_project = projects_dir / src_project_name
+    new_project = projects_dir / dest_project_name
+    if old_project.exists() and old_project != new_project:
+        if new_project.exists():
+            shutil.copytree(old_project, new_project, dirs_exist_ok=True)
+            shutil.rmtree(old_project)
+        else:
+            old_project.rename(new_project)
+
+    replacements = {
+        str(src_data_dir): str(dest_data_dir),
+        str(src_outputs): str(dest_outputs),
+        src_project_name: dest_project_name,
+    }
+    _replace_text_in_tree(dest_data_dir, replacements)
+
+
 def remove_link_metadata(path: Path) -> None:
     registry = load_link_registry()
     key = _link_key(path)
@@ -637,11 +702,19 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     dest_already_exists = dest_path.exists() and (not dest_data_dir or dest_data_dir.exists())
     if dest_already_exists:
         try:
-            ensure_index_linked(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
+            backup_path = backup_dir_tree(target_ws, "cowork-workspace")
+            normalize_cowork_session_copy(
+                session["path"],
+                dest_path,
+                Path(session["data_dir"]) if session.get("data_dir") else None,
+                dest_data_dir,
+                session.get("accountId", ""),
+                source_origin_account(session),
+            )
             return True, (
                 "Vínculo atualizado para esta conta.\n\n"
-                "A sessão já existia aqui; agora o Session Linker registrou a troca de volta "
-                "e manteve a origem original visível na lista."
+                f"A sessão já existia aqui; backup salvo em backups\\{backup_path.name}. "
+                "O Session Linker reparou o caminho interno do Cowork e manteve a origem original visível na lista."
             )
         except Exception as e:
             return False, f"Falha ao atualizar vínculo: {e}"
@@ -651,7 +724,6 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     # run into hundreds of MB, unlike Code's lightweight index-only folders.
     backup_path = backup_dir_tree(target_ws, "cowork-workspace")
     try:
-        ensure_index_linked(session["path"], dest_path, session.get("accountId", ""), source_origin_account(session))
         if session.get("data_dir") and session["data_dir"].is_dir():
             # ignore_dangling_symlinks: session output folders can contain
             # tool install artifacts (e.g. npm's node_modules/.bin) with
@@ -661,6 +733,14 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
                 session["data_dir"], dest_data_dir,
                 symlinks=True, ignore_dangling_symlinks=True,
             )
+        normalize_cowork_session_copy(
+            session["path"],
+            dest_path,
+            Path(session["data_dir"]) if session.get("data_dir") else None,
+            dest_data_dir,
+            session.get("accountId", ""),
+            source_origin_account(session),
+        )
     except Exception as e:
         return False, f"Falha ao copiar (backup salvo em {backup_path.name}): {e}"
 
@@ -1506,8 +1586,8 @@ class SessionLinkerApp(ctk.CTk):
             self._toast("Ainda não há outra conta detectada neste computador.")
             return
 
-        dialog_w = 560
-        dialog_h = min(540, 320 + 48 * len(others))
+        dialog_w = 700
+        dialog_h = min(700, 430 + 52 * len(others))
         dialog = ctk.CTkToplevel(self)
         dialog.title("Vincular sessão")
         dialog.configure(fg_color=BG)
@@ -1526,7 +1606,7 @@ class SessionLinkerApp(ctk.CTk):
 
         box = ctk.CTkFrame(dialog, fg_color=SURF, corner_radius=8, border_width=1, border_color=BRD)
         box.pack(fill="both", expand=True, padx=16, pady=16)
-        ctk.CTkLabel(box, text=session["title"], font=self._f_b, text_color=TXT, wraplength=500, justify="left").pack(anchor="w", padx=18, pady=(18, 6))
+        ctk.CTkLabel(box, text=session["title"], font=self._f_b, text_color=TXT, wraplength=620, justify="left").pack(anchor="w", padx=18, pady=(18, 6))
         ctk.CTkLabel(
             box, text=f'De: {self._account_label(source_account_id)}', font=self._f_x, text_color=TXT3,
         ).pack(anchor="w", padx=18)
@@ -1541,7 +1621,7 @@ class SessionLinkerApp(ctk.CTk):
         # and it matches the same row style used in the sidebar.
         selected = {"id": others[0]}
         target_rows = ctk.CTkFrame(box, fg_color="transparent")
-        target_rows.pack(padx=18, pady=(0, 12), fill="x")
+        target_rows.pack(padx=18, pady=(0, 10), fill="x")
         row_buttons: dict[str, "ctk.CTkButton"] = {}
 
         def select_target(account_id):
@@ -1566,14 +1646,14 @@ class SessionLinkerApp(ctk.CTk):
         status_box = ctk.CTkFrame(box, fg_color=SURF2, corner_radius=6, border_width=1, border_color=BRD)
         status = ctk.CTkLabel(
             status_box, text="", font=self._f_x, text_color=TXT2,
-            anchor="w", justify="left", wraplength=480,
+            anchor="w", justify="left", wraplength=600,
         )
         status.pack(anchor="w", padx=12, pady=10, fill="x")
         status_visible = {"value": False}
 
         def show_status(text, text_color=TXT2, bg=SURF2, border=BRD):
             if not status_visible["value"]:
-                status_box.pack(fill="x", padx=18, pady=(0, 12))
+                status_box.pack(fill="x", padx=18, pady=(0, 14))
                 status_visible["value"] = True
             status_box.configure(fg_color=bg, border_color=border)
             status.configure(text=text, text_color=text_color)
@@ -1643,7 +1723,7 @@ class SessionLinkerApp(ctk.CTk):
                 self.refresh()
 
         actions = self._dialog_actions(box)
-        actions.pack(fill="x", padx=18, pady=(4, 18))
+        actions.pack(side="bottom", fill="x", padx=18, pady=(4, 18))
         close_btn = self._dialog_button(actions, "Cancelar", close_dialog, "secondary", "left")
         link_btn = self._dialog_button(actions, "Vincular", do_link, "primary", "right")
 

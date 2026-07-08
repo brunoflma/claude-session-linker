@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import re
+import shutil
 import tempfile
 import time
 import unittest
@@ -83,19 +85,25 @@ def write_cowork_session(root: Path, account_id: str, workspace_id: str, name: s
     workspace = root / "local-agent-mode-sessions" / account_id / workspace_id
     data_dir = workspace / f"local_{name}"
     data_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir = data_dir / "outputs"
+    outputs_dir.mkdir()
     (data_dir / "audit.jsonl").write_text('{"type":"user","timestamp":"2026-01-01T00:00:00Z"}\n', encoding="utf-8")
     path = workspace / f"local_{name}.json"
     path.write_text(
         json.dumps({
             "sessionId": name,
             "cliSessionId": cli_id,
-            "cwd": rf"C:\project\{name}",
+            "cwd": str(outputs_dir),
             "title": name,
             "lastActivityAt": last_activity,
         }),
         encoding="utf-8",
     )
     return path, data_dir
+
+
+def encoded_project_dir(path: Path) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", str(path)).strip("-")
 
 
 class SessionLinkerLogicTests(unittest.TestCase):
@@ -355,6 +363,95 @@ class SessionLinkerLogicTests(unittest.TestCase):
             finally:
                 module.LINKS_FILE = original_links_file
                 module.BACKUPS_DIR = original_backups_dir
+
+    def test_link_cowork_session_rewrites_cwd_and_embedded_project_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            default_root = appdata / "Claude"
+            custom_root = localappdata / "Claude-3p"
+            source_path, source_data_dir = write_cowork_session(custom_root, "threep-account", "workspace-3p", "source", "cli-source", 20)
+            target_workspace = default_root / "local-agent-mode-sessions" / "official-account" / "workspace-official"
+            target_workspace.mkdir(parents=True)
+            (default_root / "config.json").write_text("{}", encoding="utf-8")
+            (custom_root / "config.json").write_text("{}", encoding="utf-8")
+            source_outputs = source_data_dir / "outputs"
+            source_project = source_data_dir / ".claude" / "projects" / encoded_project_dir(source_outputs)
+            source_project.mkdir(parents=True)
+            (source_project / "cli-source.jsonl").write_text(str(source_outputs), encoding="utf-8")
+
+            module = load_session_linker_with_env(appdata, localappdata)
+            original_links_file = module.LINKS_FILE
+            original_backups_dir = module.BACKUPS_DIR
+            module.LINKS_FILE = Path(tmp) / "session_links.json"
+            module.BACKUPS_DIR = Path(tmp) / "backups"
+            module.BACKUPS_DIR.mkdir()
+            try:
+                source_session = {
+                    "path": source_path,
+                    "data_dir": source_data_dir,
+                    "accountId": "threep-account",
+                    "originAccount": None,
+                    "linkedFromAccount": None,
+                }
+
+                ok, message = module.link_cowork_session_to_account(source_session, "official-account")
+
+                self.assertTrue(ok, message)
+                linked_index = target_workspace / source_path.name
+                linked_data_dir = target_workspace / source_data_dir.name
+                linked_data = json.loads(linked_index.read_text(encoding="utf-8"))
+                linked_outputs = linked_data_dir / "outputs"
+                linked_project = linked_data_dir / ".claude" / "projects" / encoded_project_dir(linked_outputs)
+                self.assertEqual(linked_data["cwd"], str(linked_outputs))
+                self.assertTrue(linked_project.exists())
+                self.assertFalse((linked_data_dir / ".claude" / "projects" / encoded_project_dir(source_outputs)).exists())
+                self.assertIn(str(linked_outputs), (linked_project / "cli-source.jsonl").read_text(encoding="utf-8"))
+                self.assertNotIn(str(source_outputs), (linked_project / "cli-source.jsonl").read_text(encoding="utf-8"))
+            finally:
+                module.LINKS_FILE = original_links_file
+                module.BACKUPS_DIR = original_backups_dir
+
+    def test_existing_cowork_destination_is_repaired_when_relinked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            default_root = appdata / "Claude"
+            custom_root = localappdata / "Claude-3p"
+            source_path, source_data_dir = write_cowork_session(custom_root, "threep-account", "workspace-3p", "source", "cli-source", 20)
+            target_workspace = default_root / "local-agent-mode-sessions" / "official-account" / "workspace-official"
+            target_workspace.mkdir(parents=True)
+            (default_root / "config.json").write_text("{}", encoding="utf-8")
+            (custom_root / "config.json").write_text("{}", encoding="utf-8")
+            source_outputs = source_data_dir / "outputs"
+            source_project = source_data_dir / ".claude" / "projects" / encoded_project_dir(source_outputs)
+            source_project.mkdir(parents=True)
+            (source_project / "cli-source.jsonl").write_text(str(source_outputs), encoding="utf-8")
+            dest_path = target_workspace / source_path.name
+            dest_data_dir = target_workspace / source_data_dir.name
+            shutil.copy2(source_path, dest_path)
+            shutil.copytree(source_data_dir, dest_data_dir)
+
+            module = load_session_linker_with_env(appdata, localappdata)
+            original_links_file = module.LINKS_FILE
+            module.LINKS_FILE = Path(tmp) / "session_links.json"
+            try:
+                source_session = {
+                    "path": source_path,
+                    "data_dir": source_data_dir,
+                    "accountId": "threep-account",
+                    "originAccount": None,
+                    "linkedFromAccount": None,
+                }
+
+                ok, message = module.link_cowork_session_to_account(source_session, "official-account")
+
+                self.assertTrue(ok, message)
+                linked_project = dest_data_dir / ".claude" / "projects" / encoded_project_dir(dest_data_dir / "outputs")
+                self.assertTrue(linked_project.exists())
+                self.assertEqual(json.loads(dest_path.read_text(encoding="utf-8"))["cwd"], str(dest_data_dir / "outputs"))
+            finally:
+                module.LINKS_FILE = original_links_file
 
     def test_remove_code_session_deletes_only_account_index_and_keeps_transcript(self):
         with tempfile.TemporaryDirectory() as tmp:
