@@ -1,5 +1,5 @@
 ' ============================================================================
-' Claude Session Linker.vbs - Launcher v1.7.0
+' Claude Session Linker.vbs - Launcher
 ' ============================================================================
 Set objShell = WScript.CreateObject("WScript.Shell")
 Set objFSO = CreateObject("Scripting.FileSystemObject")

@@ -1,5 +1,5 @@
 ' ============================================================================
-' Setup Claude Session Linker.vbs - Instalador visual de primeiro uso v1.7.0
+' Setup Claude Session Linker.vbs - Instalador visual de primeiro uso
 ' ============================================================================
 ' Abre o instalador visual (.app\setup_gui.py), que cria o venv isolado e
 ' instala as dependencias com progresso ao vivo. Este VBS localiza um Python

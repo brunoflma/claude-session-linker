@@ -1,6 +1,6 @@
 # Guia do Claude Session Linker
 
-Este guia cobre o fluxo normal para instalar e usar o Claude Session Linker 1.7.0 no Windows.
+Este guia cobre o fluxo normal para instalar e usar o Claude Session Linker no Windows.
 
 ## Instalar
 
@@ -42,7 +42,7 @@ O app cria backup antes de apagar. Em `Code`, remove apenas o índice daquela co
 
 ## Perfis Claude alternativos
 
-A versão 1.7.0 detecta mais de uma raiz local do Claude, incluindo `%APPDATA%\Claude` e perfis em `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`.
+O Claude Session Linker detecta mais de uma raiz local do Claude, incluindo `%APPDATA%\Claude` e perfis em `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`.
 
 Para limitar a execução a uma raiz específica:
 

@@ -161,7 +161,17 @@ BADGE_BLUE_BG = "#2F6582"
 BADGE_TEXT = "#FFFFFF"
 SP = 16
 WIN_TITLE = "Claude Session Linker"
-APP_VERSION = "1.7.0"
+def _load_app_version() -> str:
+    # Single source of truth: .app/VERSION. Every version label (this footer,
+    # the setup window badge, the setup.ps1 message) reads from that one file
+    # so a release only ever changes one number.
+    try:
+        return (Path(__file__).resolve().parent / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "0.0.0"
+
+
+APP_VERSION = _load_app_version()
 DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 
 # ---------------------------------------------------------------------------

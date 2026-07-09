@@ -147,6 +147,10 @@ Verificar sintaxe:
 .app\venv\Scripts\python.exe -m py_compile .app\session_linker.py .app\test_session_linker.py
 ```
 
+Lançar uma nova versão:
+
+A versão fica em um único arquivo, `.app\VERSION`. O app (`session_linker.py`), a janela do setup (`setup_gui.py`) e o `setup.ps1` leem dela em tempo de execução. Para lançar, atualize o número em `.app\VERSION` e a linha `Versão atual` no topo deste README, crie a tag/release e anexe o `.zip`.
+
 ## Guia
 
 Veja [GUIA.md](GUIA.md) para o passo a passo de instalação, uso diário e recuperação.

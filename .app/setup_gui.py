@@ -17,6 +17,17 @@ from tkinter import font as tkfont
 
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
+
+
+def _load_app_version() -> str:
+    # Single source of truth shared with session_linker.py and setup.ps1.
+    try:
+        return (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "0.0.0"
+
+
+APP_VERSION = _load_app_version()
 SETUP_PS1 = APP_DIR / "setup.ps1"
 RESULT_FILE = APP_DIR / "logs" / "setup-result.txt"
 ICON_PATH = APP_DIR / "icon.ico"
@@ -186,7 +197,7 @@ class SetupApp(tk.Tk):
 
         tk.Label(
             side,
-            text="v1.7.0",
+            text=f"v{APP_VERSION}",
             bg=BG,
             fg=TXT3,
             font=self.f_sub,

@@ -99,7 +99,8 @@ function Find-Python {
     return $null
 }
 
-Write-Host "Claude Session Linker 1.7.0 - configurando ambiente..."
+$version = try { (Get-Content -LiteralPath (Join-Path $appDir "VERSION") -Raw).Trim() } catch { "0.0.0" }
+Write-Host "Claude Session Linker $version - configurando ambiente..."
 
 $python = Find-Python
 if (-not $python) {
