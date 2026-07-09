@@ -161,7 +161,7 @@ BADGE_BLUE_BG = "#2F6582"
 BADGE_TEXT = "#FFFFFF"
 SP = 16
 WIN_TITLE = "Claude Session Linker"
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.7.0"
 DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 
 # ---------------------------------------------------------------------------
@@ -534,7 +534,12 @@ def copy_index_with_link_metadata(src_path: Path, dest_path: Path, source_accoun
 
 
 def claude_project_dir_name(path: Path | str) -> str:
-    return re.sub(r"[^A-Za-z0-9]+", "-", str(path)).strip("-")
+    # Claude Desktop encodes a project folder by replacing EACH non-alphanumeric
+    # character with a dash -- it does not collapse runs, so `C:\` -> `C--`.
+    # Using `+` here (collapsing) produced `C-...`, which never matched the real
+    # folder, so the Cowork link rename was silently skipped and Claude reported
+    # "No conversation found with session ID: ...".
+    return re.sub(r"[^A-Za-z0-9]", "-", str(path)).strip("-")
 
 
 def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:

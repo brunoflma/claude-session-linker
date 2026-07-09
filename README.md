@@ -2,7 +2,7 @@
 
 Interface local para visualizar, vincular, comparar e remover sessões do Claude Desktop entre contas diferentes no mesmo computador.
 
-Versão atual: 1.6.1.
+Versão atual: 1.7.0.
 
 ## O que a ferramenta faz
 

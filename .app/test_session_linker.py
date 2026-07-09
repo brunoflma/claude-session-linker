@@ -103,7 +103,40 @@ def write_cowork_session(root: Path, account_id: str, workspace_id: str, name: s
 
 
 def encoded_project_dir(path: Path) -> str:
-    return re.sub(r"[^A-Za-z0-9]+", "-", str(path)).strip("-")
+    # Mirror Claude Desktop exactly: each non-alphanumeric char becomes its own
+    # dash (no collapsing), so a `C:\` drive prefix yields `C--`.
+    return re.sub(r"[^A-Za-z0-9]", "-", str(path)).strip("-")
+
+
+class ClaudeProjectDirNameTests(unittest.TestCase):
+    def test_matches_claude_desktop_per_char_encoding(self):
+        # Claude Desktop replaces EACH non-alphanumeric character with a dash;
+        # it does not collapse consecutive separators. The `:\` after the drive
+        # letter must therefore produce a double dash. If this collapses to a
+        # single dash, normalize_cowork_session_copy computes the wrong project
+        # folder name, the rename is skipped, and Claude reports
+        # "No conversation found with session ID: ...".
+        self.assertEqual(
+            session_linker.claude_project_dir_name(
+                r"C:\Users\bruno\AppData\Roaming\Claude\local_5a02\outputs"
+            ),
+            "C--Users-bruno-AppData-Roaming-Claude-local-5a02-outputs",
+        )
+
+    def test_agrees_with_real_cowork_folder_name(self):
+        cwd = (
+            r"C:\Users\bruno\AppData\Roaming\Claude\local-agent-mode-sessions"
+            r"\d3175704-2ff0-40cf-9335-fe5ebcee0085"
+            r"\32f37971-c6ed-47c6-89a5-8afe7e524fe1"
+            r"\local_5a0266a6-d242-423f-aa1c-34bc9de1f2af\outputs"
+        )
+        real_folder = (
+            "C--Users-bruno-AppData-Roaming-Claude-local-agent-mode-sessions-"
+            "d3175704-2ff0-40cf-9335-fe5ebcee0085-"
+            "32f37971-c6ed-47c6-89a5-8afe7e524fe1-"
+            "local-5a0266a6-d242-423f-aa1c-34bc9de1f2af-outputs"
+        )
+        self.assertEqual(session_linker.claude_project_dir_name(cwd), real_folder)
 
 
 class SessionLinkerLogicTests(unittest.TestCase):
