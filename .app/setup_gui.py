@@ -186,7 +186,7 @@ class SetupApp(tk.Tk):
 
         tk.Label(
             side,
-            text="v1.5",
+            text="v1.7.0",
             bg=BG,
             fg=TXT3,
             font=self.f_sub,

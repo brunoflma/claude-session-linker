@@ -99,7 +99,7 @@ function Find-Python {
     return $null
 }
 
-Write-Host "Claude Session Linker 1.5 - configurando ambiente..."
+Write-Host "Claude Session Linker 1.7.0 - configurando ambiente..."
 
 $python = Find-Python
 if (-not $python) {
