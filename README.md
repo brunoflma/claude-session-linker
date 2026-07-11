@@ -2,7 +2,7 @@
 
 Interface local para visualizar, vincular, comparar e remover sessões do Claude Desktop entre contas diferentes no mesmo computador.
 
-Versão atual: 1.8.0.
+Versão atual: 1.9.0.
 
 ## O que a ferramenta faz
 
@@ -22,6 +22,7 @@ Obrigatórios:
 - Windows 10 ou 11.
 - Claude Desktop instalado.
 - Perfis alternativos do Claude Desktop, como `Claude-3p`, também são detectados quando ficam em `%LOCALAPPDATA%`.
+- Instalações do Claude distribuídas pela Microsoft Store/MSIX são detectadas em `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`.
 - Pelo menos duas contas Claude já usadas no Claude Desktop neste computador.
 - Python 3.10 ou superior.
 - PowerShell, já incluído no Windows.
@@ -98,7 +99,7 @@ Abra o Claude Desktop logado nessa conta pelo menos uma vez e acesse a aba corre
 
 ### Limitar a um perfil Claude específico
 
-Por padrão, o Session Linker carrega todas as raízes locais válidas do Claude entre `%APPDATA%\Claude` e perfis `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`. Assim as contas oficiais e o Claude 3p aparecem na mesma lista.
+Por padrão, o Session Linker carrega todas as raízes locais válidas do Claude em `%APPDATA%\Claude`, perfis `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`, e instalações Microsoft Store/MSIX em `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`. Assim as contas oficiais e o Claude 3p aparecem na mesma lista.
 
 Para limitar a ferramenta a uma raiz específica nesta execução:
 

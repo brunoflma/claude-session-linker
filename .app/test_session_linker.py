@@ -175,6 +175,30 @@ class SessionLinkerLogicTests(unittest.TestCase):
             self.assertEqual(module.COWORK_SESSIONS_DIR, custom_root / "local-agent-mode-sessions")
             self.assertEqual(module.CONFIG_JSON, custom_root / "config.json")
 
+    def test_module_discovers_msix_and_3p_profile_roots_together(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            threep_root = localappdata / "Claude-3p"
+            msix_root = (
+                localappdata
+                / "Packages"
+                / "Claude_pzs8sxrjxfjjc"
+                / "LocalCache"
+                / "Roaming"
+                / "Claude"
+            )
+            (threep_root / "config.json").parent.mkdir(parents=True)
+            (threep_root / "config.json").write_text("{}", encoding="utf-8")
+            write_code_session(threep_root, "threep-account", "workspace-3p", "threep", "cli-3p", 10)
+            write_code_session(msix_root, "paid-account", "workspace-paid", "paid", "cli-paid", 20)
+            (localappdata / "Packages" / "Claude_invalid").mkdir(parents=True)
+
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            self.assertEqual(set(module.CLAUDE_DIRS), {threep_root, msix_root})
+            self.assertEqual(set(module.scan_sessions()), {"threep-account", "paid-account"})
+
     def test_scan_sessions_includes_accounts_from_all_valid_claude_roots(self):
         with tempfile.TemporaryDirectory() as tmp:
             appdata = Path(tmp) / "Roaming"

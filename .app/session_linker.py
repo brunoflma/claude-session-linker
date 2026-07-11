@@ -225,6 +225,13 @@ def discover_claude_dirs(appdata: Path, localappdata: Path | None = None) -> lis
             candidates.extend(sorted(localappdata.glob("Claude*")))
         except OSError:
             pass
+        try:
+            candidates.extend(
+                package / "LocalCache" / "Roaming" / "Claude"
+                for package in sorted((localappdata / "Packages").glob("Claude_*"))
+            )
+        except OSError:
+            pass
     valid = [path for path in _unique_paths(candidates) if is_claude_data_dir(path)]
     valid.sort(key=claude_dir_activity_time, reverse=True)
     return valid

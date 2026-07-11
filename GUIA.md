@@ -42,7 +42,7 @@ O app cria backup antes de apagar. Em `Code`, remove apenas o índice daquela co
 
 ## Perfis Claude alternativos
 
-O Claude Session Linker detecta mais de uma raiz local do Claude, incluindo `%APPDATA%\Claude` e perfis em `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`.
+O Claude Session Linker detecta mais de uma raiz local do Claude, incluindo `%APPDATA%\Claude`, perfis em `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`, e instalações Microsoft Store/MSIX em `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`.
 
 Para limitar a execução a uma raiz específica:
 
