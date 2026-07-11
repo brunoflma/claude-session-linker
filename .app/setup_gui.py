@@ -102,12 +102,17 @@ class RoundedButton(tk.Canvas):
 if sys.platform.startswith("win"):
     try:
         import ctypes
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        # Per-monitor V2 keeps Tk usable when the window is moved between
+        # displays with different scaling. Older Windows versions fall back.
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
     except Exception:
         try:
-            ctypes.windll.user32.SetProcessDPIAware()
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
-            pass
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Claude.SessionLinker.Setup")
     except Exception:
@@ -119,7 +124,7 @@ class SetupApp(tk.Tk):
         super().__init__()
         self.title("Claude Session Linker - Setup")
         self.configure(bg=PAPER)
-        self.resizable(False, False)
+        self.resizable(True, True)
         if ICON_PATH.exists():
             try:
                 self.iconbitmap(default=str(ICON_PATH))
@@ -138,8 +143,14 @@ class SetupApp(tk.Tk):
         self.f_btn = tkfont.Font(family="Segoe UI", size=10, weight="bold")
         self.f_log = tkfont.Font(family="Consolas", size=9)
 
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        self._compact = screen_w < 900 or screen_h < 680
         self._build()
-        self._center(860, 540)
+        target_w = min(860, max(520, screen_w - 48))
+        target_h = min(540, max(440, screen_h - 72))
+        self.minsize(min(520, target_w), min(440, target_h))
+        self._center(target_w, target_h)
         self.after(80, self._lift_once)
         if "--self-test-finish" not in sys.argv:
             self.after(350, self._start)
@@ -149,10 +160,11 @@ class SetupApp(tk.Tk):
         shell.pack(fill="both", expand=True)
 
         sidebar = tk.Frame(shell, bg=BG, width=286)
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
+        sidebar.pack(side="top" if self._compact else "left", fill="x" if self._compact else "y")
+        if not self._compact:
+            sidebar.pack_propagate(False)
         side = tk.Frame(sidebar, bg=BG)
-        side.pack(fill="both", expand=True, padx=22, pady=22)
+        side.pack(fill="both", expand=True, padx=18 if self._compact else 22, pady=12 if self._compact else 22)
 
         tk.Label(
             side,
@@ -176,7 +188,7 @@ class SetupApp(tk.Tk):
         ).pack(fill="x", pady=(4, 0))
 
         status_canvas = tk.Canvas(side, height=86, bg=BG, highlightthickness=0, bd=0)
-        status_canvas.pack(fill="x", pady=(26, 0))
+        status_canvas.pack(fill="x", pady=(10 if self._compact else 26, 0))
         _rounded_rect(status_canvas, 1, 1, 241, 85, 10, fill=SURF, outline=BRD)
         status_inner = tk.Frame(status_canvas, bg=SURF)
         status_canvas.create_window(13, 12, window=status_inner, anchor="nw", width=216, height=62)
@@ -195,17 +207,18 @@ class SetupApp(tk.Tk):
         )
         self._status.pack(fill="x", pady=(8, 0))
 
-        tk.Label(
+        self._version_label = tk.Label(
             side,
             text=f"v{APP_VERSION}",
             bg=BG,
             fg=TXT3,
             font=self.f_sub,
             anchor="w",
-        ).pack(side="bottom", fill="x")
+        )
+        self._version_label.pack(side="bottom", fill="x")
 
         main = tk.Frame(shell, bg=PAPER)
-        main.pack(side="left", fill="both", expand=True)
+        main.pack(side="top" if self._compact else "left", fill="both", expand=True)
 
         header = tk.Frame(main, bg=PAPER)
         header.pack(fill="x", padx=22, pady=(22, 14))
@@ -282,15 +295,20 @@ class SetupApp(tk.Tk):
         if width is None:
             width = max(112, min(230, 24 + len(text) * 8))
         button = RoundedButton(parent, text, bg, hover, fg=fg, command=cmd, width=width, height=36)
-        button.pack(side=side, padx=(8 if side == "right" else 0, 0))
+        if self._compact:
+            button.pack(side="top", anchor="e", pady=(6, 0))
+        else:
+            button.pack(side=side, padx=(8 if side == "right" else 0, 0))
         return button
 
     def _center(self, width, height):
         self.update_idletasks()
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        x = (sw - width) // 2
-        y = (sh - height) // 3
+        width = min(width, max(320, sw - 32))
+        height = min(height, max(320, sh - 48))
+        x = max(0, (sw - width) // 2)
+        y = max(0, (sh - height) // 3)
         self.geometry(f"{width}x{height}+{x}+{y}")
 
     def _lift_once(self):

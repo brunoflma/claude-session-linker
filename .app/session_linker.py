@@ -1063,12 +1063,16 @@ class SessionLinkerApp(ctk.CTk):
         self.bind("<Configure>", lambda _event=None: self._hide_tooltip(), add="+")
         self.bind("<MouseWheel>", lambda _event=None: self._hide_tooltip(), add="+")
 
+        self._compact_layout = self.winfo_screenwidth() < 1000 or self.winfo_screenheight() < 700
         self._build()
         self._render_loading()
         self.update_idletasks()
-        target_w, target_h = 1120, 760
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        target_w = min(1120, max(640, screen_w - 48))
+        target_h = min(760, max(480, screen_h - 72))
         self.geometry(f"{target_w}x{target_h}")
-        self.minsize(980, 620)
+        self.minsize(min(720, target_w), min(480, target_h))
         self._center(target_w, target_h)
         self.after(0, self._show_main_window)
         self.after(180, self._show_main_window)
@@ -1094,6 +1098,8 @@ class SessionLinkerApp(ctk.CTk):
         try:
             sw = self.winfo_screenwidth()
             sh = self.winfo_screenheight()
+            w = min(w, max(480, sw - 32))
+            h = min(h, max(360, sh - 48))
             x = max(0, (sw - w) // 2)
             y = max(0, (sh - h) // 3)
             self.geometry(f"{w}x{h}+{x}+{y}")
@@ -1121,17 +1127,17 @@ class SessionLinkerApp(ctk.CTk):
         shell.grid_columnconfigure(1, weight=1)
 
         # --- Sidebar (dark) -------------------------------------------
-        sidebar_w = 300
+        sidebar_w = 230 if self._compact_layout else 300
         sidebar = ctk.CTkFrame(shell, fg_color=BG, corner_radius=0, width=sidebar_w)
         sidebar.grid(row=0, column=0, sticky="nsew")
         sidebar.grid_propagate(False)
-        side = ctk.CTkFrame(sidebar, fg_color="transparent")
+        side = ctk.CTkScrollableFrame(sidebar, fg_color="transparent", scrollbar_button_color=BRD)
         side.pack(fill="both", expand=True, padx=22, pady=22)
 
         ctk.CTkLabel(side, text=WIN_TITLE, font=self._f_h, text_color=TXT, anchor="w").pack(anchor="w")
         ctk.CTkLabel(
             side, text="Alterne sessões do Code e do Cowork entre suas contas Claude.",
-            font=self._f_x, text_color=TXT2, anchor="w", justify="left", wraplength=250,
+            font=self._f_x, text_color=TXT2, anchor="w", justify="left", wraplength=180 if self._compact_layout else 250,
         ).pack(anchor="w", pady=(2, 0))
 
         mode_row = ctk.CTkFrame(side, fg_color=SURF, corner_radius=8)
@@ -1504,7 +1510,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Remover sessão")
         dialog.configure(fg_color=BG)
-        dialog.resizable(False, False)
+        dialog.resizable(True, True)
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
@@ -1606,7 +1612,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Vincular sessão")
         dialog.configure(fg_color=BG)
-        dialog.resizable(False, False)
+        dialog.resizable(True, True)
         dialog.transient(self)
         # Center over the main window instead of the OS default position --
         # an off-center Toplevel visually collides with the session list
@@ -1796,7 +1802,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Comparar sessão")
         dialog.configure(fg_color=BG)
-        dialog.resizable(False, False)
+        dialog.resizable(True, True)
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
@@ -1838,7 +1844,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Comparação de sessões")
         dialog.configure(fg_color=BG)
-        dialog.resizable(False, False)
+        dialog.resizable(True, True)
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
@@ -1928,6 +1934,9 @@ class SessionLinkerApp(ctk.CTk):
         self.update_idletasks()
         sw = dialog.winfo_screenwidth()
         sh = dialog.winfo_screenheight()
+        w = min(w, max(360, sw - 48))
+        h = min(h, max(300, sh - 72))
+        dialog.minsize(min(360, w), min(300, h))
         x = self.winfo_x() + (self.winfo_width() - w) // 2
         y = self.winfo_y() + (self.winfo_height() - h) // 2
         x = min(max(x, 0), max(sw - w - 8, 0))
@@ -1965,7 +1974,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Renomear conta")
         dialog.configure(fg_color=BG)
-        dialog.resizable(False, False)
+        dialog.resizable(True, True)
         dialog.transient(self)
         dialog.geometry(f"{w}x{h}")
         self._center_toplevel(dialog, w, h)
@@ -2039,7 +2048,7 @@ class SessionLinkerApp(ctk.CTk):
             win.configure(fg_color=SURF3)
             ctk.CTkLabel(
                 win, text=text, font=self._f_x, text_color=TXT,
-                justify="left", wraplength=420, padx=12, pady=7,
+                justify="left", wraplength=min(420, max(180, win.winfo_screenwidth() - 48)), padx=12, pady=7,
             ).pack()
             win.update_idletasks()
             sw = win.winfo_screenwidth()
@@ -2079,7 +2088,7 @@ class SessionLinkerApp(ctk.CTk):
         win.attributes("-topmost", True)
         ctk.CTkLabel(
             win, text=text, font=self._f_x, text_color=TXT, justify="left",
-            wraplength=520, padx=14, pady=10,
+            wraplength=min(520, max(180, win.winfo_screenwidth() - 48)), padx=14, pady=10,
         ).pack()
         win.update_idletasks()
         sw = win.winfo_screenwidth()
