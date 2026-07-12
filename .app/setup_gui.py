@@ -364,9 +364,10 @@ class SetupApp(tk.Tk):
 
     def _run_setup(self):
         try:
+            powershell_cmd = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
             proc = subprocess.Popen(
                 [
-                    "powershell.exe",
+                    powershell_cmd,
                     "-NoLogo",
                     "-NoProfile",
                     "-ExecutionPolicy",

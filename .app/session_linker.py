@@ -342,8 +342,9 @@ _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE
 
 def is_desktop_running() -> bool:
     try:
+        tasklist_cmd = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "tasklist.exe")
         out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq Claude.exe"],
+            [tasklist_cmd, "/FI", "IMAGENAME eq Claude.exe"],
             capture_output=True, timeout=5,
             creationflags=_NO_WINDOW_FLAGS,  # avoid a console flash from pythonw.exe
         )
