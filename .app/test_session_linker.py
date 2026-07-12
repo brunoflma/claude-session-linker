@@ -812,6 +812,23 @@ class SessionLinkerLogicTests(unittest.TestCase):
 
         self.assertEqual(session_linker.source_origin_account(source), "account-a")
 
+    def test_tasklist_uses_absolute_path_for_security(self):
+        from unittest.mock import patch, Mock
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = Mock(stdout=b"")
+            session_linker.is_desktop_running()
+            tasklist_call = None
+            for call in mock_run.call_args_list:
+                args = call[0][0]
+                if isinstance(args, list) and len(args) > 0 and 'tasklist.exe' in args[0].lower():
+                    tasklist_call = call
+                    break
+            self.assertIsNotNone(tasklist_call, "tasklist was not called")
+            cmd = tasklist_call[0][0][0]
+            self.assertTrue(cmd.lower().endswith("tasklist.exe"))
+            self.assertTrue("system32" in cmd.lower())
+            self.assertTrue(os.path.isabs(cmd) or cmd.startswith("C:\\") or cmd.startswith("c:\\"))
+
 
 if __name__ == "__main__":
     unittest.main()
