@@ -340,9 +340,24 @@ def get_active_account_uuid():
 _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE_NO_WINDOW
 
 
+def _get_system_executable(name: str) -> str:
+    """Securely resolves the path to a system executable without relying on
+    PATH or SystemRoot environment variables, preventing binary planting."""
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            length = ctypes.windll.kernel32.GetSystemDirectoryW(buf, 260)
+            if length > 0:
+                return os.path.join(buf[:length], name)
+        except Exception:
+            pass
+    return os.path.join(r"C:\Windows\System32", name)
+
+
 def is_desktop_running() -> bool:
     try:
-        tasklist_cmd = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "tasklist.exe")
+        tasklist_cmd = _get_system_executable("tasklist.exe")
         out = subprocess.run(
             [tasklist_cmd, "/FI", "IMAGENAME eq Claude.exe"],
             capture_output=True, timeout=5,
