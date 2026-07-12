@@ -362,11 +362,26 @@ class SetupApp(tk.Tk):
         self._start_bar()
         threading.Thread(target=self._run_setup, daemon=True).start()
 
+    def _get_system_executable(self, subpath: str) -> str:
+        """Securely resolves the path to a system executable without relying on
+        PATH or SystemRoot environment variables, preventing binary planting."""
+        if sys.platform.startswith("win"):
+            try:
+                import ctypes
+                buf = ctypes.create_unicode_buffer(260)
+                length = ctypes.windll.kernel32.GetSystemDirectoryW(buf, 260)
+                if length > 0:
+                    return os.path.join(buf[:length], subpath)
+            except Exception:
+                pass
+        return os.path.join(r"C:\Windows\System32", subpath)
+
     def _run_setup(self):
         try:
+            powershell_cmd = self._get_system_executable(os.path.join("WindowsPowerShell", "v1.0", "powershell.exe"))
             proc = subprocess.Popen(
                 [
-                    "powershell.exe",
+                    powershell_cmd,
                     "-NoLogo",
                     "-NoProfile",
                     "-ExecutionPolicy",
