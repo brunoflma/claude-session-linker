@@ -476,7 +476,7 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     zip_path = BACKUPS_DIR / f"{label}-{stamp}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in dir_path.rglob("*"):
-            if f.is_file():
+            if f.is_file() and not f.is_symlink():
                 zf.write(f, f.relative_to(dir_path.parent))
     return zip_path
 
@@ -581,7 +581,7 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         return
     text_suffixes = {".json", ".jsonl", ".md", ".txt", ".yml", ".yaml", ".toml", ".lock", ""}
     for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in text_suffixes:
+        if not path.is_file() or path.is_symlink() or path.suffix.lower() not in text_suffixes:
             continue
         try:
             text = path.read_text(encoding="utf-8")
