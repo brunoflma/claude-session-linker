@@ -861,7 +861,7 @@ class SessionLinkerLogicTests(unittest.TestCase):
         with patch.dict("os.environ", {"SystemRoot": r"C:\Poisoned", "PATH": r"C:\Poisoned"}):
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value = Mock(stdout=b"")
-                session_linker.is_desktop_running()
+                session_linker.is_desktop_running(platform="win32")
                 tasklist_call = None
                 for call in mock_run.call_args_list:
                     args = call[0][0]
@@ -874,6 +874,29 @@ class SessionLinkerLogicTests(unittest.TestCase):
                 self.assertNotIn("poisoned", cmd.lower())
                 self.assertTrue("system32" in cmd.lower())
                 self.assertTrue(os.path.isabs(cmd) or cmd.startswith("C:\\") or cmd.startswith("c:\\"))
+
+
+class MacDesktopDetectionTests(unittest.TestCase):
+    def test_uses_pgrep_with_app_anchored_pattern(self):
+        from unittest.mock import patch, Mock
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = Mock(returncode=0, stdout=b"1234\n")
+            self.assertTrue(session_linker.is_desktop_running(platform="darwin"))
+            args = mock_run.call_args[0][0]
+            self.assertTrue(args[0].endswith("pgrep"))
+            self.assertIn("-f", args)
+            self.assertIn("Claude.app/Contents/MacOS/Claude", args)
+
+    def test_returns_false_when_only_cli_claude_running(self):
+        from unittest.mock import patch, Mock
+        with patch("subprocess.run") as mock_run:
+            # pgrep with the capitalized .app pattern finds nothing -> returncode 1.
+            mock_run.return_value = Mock(returncode=1, stdout=b"")
+            self.assertFalse(session_linker.is_desktop_running(platform="darwin"))
+
+    def test_get_system_executable_posix_prefers_usr_bin(self):
+        path = session_linker._get_system_executable("pgrep", platform="darwin")
+        self.assertTrue(path == "/usr/bin/pgrep" or path.endswith("/pgrep") or path == "pgrep")
 
 
 class MacDiscoveryTests(unittest.TestCase):
