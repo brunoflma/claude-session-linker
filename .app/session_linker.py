@@ -1593,7 +1593,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
-        if ICON_PATH.exists():
+        if ICON_PATH.exists() and sys.platform.startswith("win"):
             try:
                 dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
             except Exception:
@@ -1698,7 +1698,7 @@ class SessionLinkerApp(ctk.CTk):
         # behind it, which read as "messy" overlapping content.
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
-        if ICON_PATH.exists():
+        if ICON_PATH.exists() and sys.platform.startswith("win"):
             try:
                 dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
             except Exception:
@@ -1885,7 +1885,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
-        if ICON_PATH.exists():
+        if ICON_PATH.exists() and sys.platform.startswith("win"):
             try:
                 dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
             except Exception:
@@ -1927,7 +1927,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog.transient(self)
         self._center_toplevel(dialog, dialog_w, dialog_h)
         dialog.grab_set()
-        if ICON_PATH.exists():
+        if ICON_PATH.exists() and sys.platform.startswith("win"):
             try:
                 dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
             except Exception:
@@ -2058,7 +2058,7 @@ class SessionLinkerApp(ctk.CTk):
         dialog.geometry(f"{w}x{h}")
         self._center_toplevel(dialog, w, h)
         dialog.grab_set()
-        if ICON_PATH.exists():
+        if ICON_PATH.exists() and sys.platform.startswith("win"):
             try:
                 dialog.after(150, lambda: dialog.iconbitmap(str(ICON_PATH)))
             except Exception:
