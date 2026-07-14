@@ -4,158 +4,86 @@ Interface local para visualizar, vincular, comparar e remover sessões do Claude
 
 Versão atual: 1.10.0.
 
+Compatível com Windows 10/11 e macOS.
+
+## Início rápido
+
+1. Abra a [release mais recente](https://github.com/brunoflma/claude-session-linker/releases/latest).
+2. Baixe o ZIP correspondente ao seu sistema operacional.
+3. Extraia o ZIP em uma pasta permanente e siga o guia específico:
+
+| Sistema | Pacote | Guia |
+|---|---|---|
+| Windows | `claude-session-linker-<versão>-windows.zip` | [Guia para Windows](GUIA-WINDOWS.md) |
+| macOS | `claude-session-linker-<versão>-macos.zip` | [Guia para macOS](GUIA-MACOS.md) |
+
+O [índice de guias](GUIA.md) ajuda a escolher a documentação correta.
+
 ## O que a ferramenta faz
 
-- Lista sessões locais do Claude Desktop na aba Code.
-- Lista sessões locais do Cowork / Agent Mode.
-- Vincula uma sessão de uma conta Claude para outra conta Claude no mesmo Windows.
-- Em sessões Code, clona o transcript ao vincular para que a conta de destino possa avançar sem alterar a conversa de origem.
-- Remove uma sessão de uma conta quando você não quer mais mantê-la naquela conta.
-- Mostra a origem e o rastreamento de vínculos entre contas.
-- Compara sessões vinculadas para indicar qual conversa tem mais mensagens ou atividade mais recente.
-- Cria backups antes de escrever nas pastas locais do Claude Desktop.
+- Lista sessões locais do Claude Desktop nas abas `Code` e `Cowork`.
+- Vincula uma sessão de uma conta Claude a outra conta usada no mesmo computador.
+- Em sessões `Code`, clona o transcript ao criar um novo vínculo, permitindo que as contas avancem de forma independente.
+- Em sessões `Cowork`, copia o índice e a pasta local da conversa.
+- Compara cópias vinculadas por quantidade de mensagens e atividade mais recente.
+- Remove uma sessão somente da conta escolhida.
+- Cria backups antes de alterar os arquivos locais do Claude Desktop.
+- Detecta instalações oficiais, perfis alternativos como `Claude-3p` e, no Windows, instalações Microsoft Store/MSIX.
 
 ## Pré-requisitos
 
-Obrigatórios:
+Comuns aos dois sistemas:
 
-- Windows 10 ou 11.
 - Claude Desktop instalado.
-- Perfis alternativos do Claude Desktop, como `Claude-3p`, também são detectados quando ficam em `%LOCALAPPDATA%`.
-- Instalações do Claude distribuídas pela Microsoft Store/MSIX são detectadas em `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`.
-- Pelo menos duas contas Claude já usadas no Claude Desktop neste computador.
+- Pelo menos duas contas já usadas no Claude Desktop nesse computador.
 - Python 3.10 ou superior.
-- PowerShell, já incluído no Windows.
 
-Instalados automaticamente pelo setup:
+Requisitos específicos:
 
-- `customtkinter`
-- `darkdetect`
-- `pillow`
+- Windows: PowerShell, já incluído no sistema.
+- macOS: Homebrew pode ser necessário para instalar o `tkinter` quando ele não estiver disponível no Python encontrado.
 
-Não é necessário:
+O setup instala automaticamente `customtkinter`, `darkdetect` e `pillow` em `.app/venv`. Não são necessários Node.js, npm, banco de dados, servidor local ou chave de API.
 
-- Node.js.
-- npm.
-- Banco de dados.
-- Chave de API.
-- Servidor local.
+## Uso básico
 
-## Instalação rápida
+1. Abra o Claude Desktop e use cada conta pelo menos uma vez.
+2. Em cada conta, abra a aba `Code` ou `Cowork` para criar as pastas locais correspondentes.
+3. Feche completamente o Claude Desktop antes de vincular ou remover sessões.
+4. Abra o Claude Session Linker e escolha `Code` ou `Cowork`.
+5. Use `Vincular conta`, `Comparar` ou `Remover` conforme necessário.
+6. Reabra o Claude Desktop na conta de destino para atualizar a barra lateral.
 
-1. Baixe o arquivo `.zip` da versão mais recente em Releases.
-2. Extraia a pasta em um local permanente, por exemplo `C:\Users\<voce>\.claude\Claude Session Linker`.
-3. Dê duplo clique em `00 - Setup Claude Session Linker.vbs`.
-4. Quando o setup terminar, abra com duplo clique em `Claude Session Linker.vbs`.
+Consulte as instruções de fechamento, instalação e recuperação específicas do seu sistema:
 
-O setup abre uma janela gráfica, cria o ambiente Python isolado em `.app\venv` e instala as dependências automaticamente.
+- [Windows](GUIA-WINDOWS.md)
+- [macOS](GUIA-MACOS.md)
 
-Para instalação por Git, clone o repositório e rode o mesmo `00 - Setup Claude Session Linker.vbs`.
+## Segurança, privacidade e backups
 
-## macOS
+O Claude Session Linker funciona localmente. Ele não envia sessões, mensagens, tokens, caminhos ou dados de contas para servidores externos.
 
-Pré-requisitos macOS:
+O primeiro setup acessa a internet somente para instalar as dependências Python e, no macOS, para instalar `python-tk` pelo Homebrew quando necessário.
 
-- macOS com Claude Desktop instalado e pelo menos duas contas já usadas.
-- Homebrew (https://brew.sh) — usado pelo setup para instalar o `tkinter` do Python quando necessário.
-- Python 3.10+ (o setup detecta ou orienta a instalação).
+Os backups ficam em `.app/backups`:
 
-Instalação:
+- `Code`: backup da pasta local de índices antes de escrever ou remover.
+- `Cowork`: backup do workspace que será alterado.
 
-1. Clone ou baixe o projeto em um local permanente.
-2. Dê duplo clique em `00 - Setup Claude Session Linker.command`.
-   - No primeiro uso, o macOS pode bloquear o arquivo. Clique com o botão direito → **Abrir**, ou libere em **Ajustes do Sistema → Privacidade e Segurança → Abrir Assim Mesmo**.
-3. Ao terminar, o app abre automaticamente, ou dê duplo clique em `Claude Session Linker.command`.
-
-As raízes locais do Claude no macOS ficam em `~/Library/Application Support/Claude` e perfis alternativos como `~/Library/Application Support/Claude-3p`. Os transcripts ficam em `~/.claude/projects`, como no Windows.
-
-Se o setup encontrar um ambiente Python antigo ou corrompido, recrie-o pelo Terminal com `bash ".app/setup.sh" --recreate-venv`.
-
-## Como usar
-
-1. Abra o Claude Desktop e use cada conta pelo menos uma vez para que as pastas locais sejam criadas.
-2. Feche o Claude Desktop completamente pela bandeja do sistema antes de vincular sessões.
-3. Abra o Claude Session Linker.
-4. Escolha a aba `Code` ou `Cowork`.
-5. Clique em `Vincular conta` na sessão desejada.
-6. Escolha a conta de destino.
-7. Reabra o Claude Desktop logado na conta de destino.
-
-Para comparar progresso entre contas, clique em `Comparar`. Quando existir uma sessão vinculada correspondente, a comparação abre direto nela.
-
-Para remover uma sessão apenas de uma conta, clique em `Remover`. O app cria backup antes de apagar. Em sessões Code, só o índice daquela conta é removido; o transcript local em `.claude\projects` é preservado. Em sessões Cowork, o índice e a pasta local de dados daquela sessão são removidos da conta selecionada.
-
-## Segurança e privacidade
-
-Esta ferramenta roda somente no seu computador.
-
-Ela não envia sessões, mensagens, tokens, caminhos locais ou dados de contas para servidores externos. As alterações são feitas em arquivos locais do Claude Desktop.
-
-## Backups
-
-Antes de vincular sessões, o app cria backups em `.app\backups`.
-
-- Para sessões Code, o backup cobre a pasta local de índices de sessões Code.
-- Para sessões Cowork, o backup cobre o workspace de destino, evitando copiar árvores muito grandes sem necessidade.
-- Antes de remover sessões, o app também cria backup do escopo que será alterado.
+Perfis e arquivos de sessão que sejam links simbólicos são ignorados ou recusados nas operações sensíveis.
 
 ## Limitações
 
 - O formato de armazenamento do Claude Desktop não é uma API pública e pode mudar.
-- A ferramenta copia e registra vínculos; em sessões Code, novos vínculos também clonam o transcript local para que a conta de destino possa avançar sem alterar a contagem da origem.
-- A ferramenta não mescla conversas divergentes.
-- A comparação conta mensagens e última atividade a partir dos arquivos locais disponíveis no computador.
+- A ferramenta não mescla conversas que divergiram entre contas.
+- A comparação depende dos arquivos locais ainda disponíveis no computador.
+- O pacote macOS usa scripts locais e não é um aplicativo assinado ou notarizado; o Gatekeeper pode exigir confirmação no primeiro uso.
 
-## Solução de problemas
+## Documentação
 
-### Python não encontrado
-
-Instale Python 3.10 ou superior em [python.org](https://www.python.org/downloads/) e execute novamente `00 - Setup Claude Session Linker.vbs`.
-
-### A conta de destino não aparece
-
-Abra o Claude Desktop logado nessa conta pelo menos uma vez e acesse a aba correspondente (`Code` ou `Cowork`) para que o Claude crie as pastas locais.
-
-### Limitar a um perfil Claude específico
-
-Por padrão, o Session Linker carrega todas as raízes locais válidas do Claude em `%APPDATA%\Claude`, perfis `%LOCALAPPDATA%\Claude*`, como `%LOCALAPPDATA%\Claude-3p`, e instalações Microsoft Store/MSIX em `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`. Assim as contas oficiais e o Claude 3p aparecem na mesma lista.
-
-Para limitar a ferramenta a uma raiz específica nesta execução:
-
-```powershell
-$env:CLAUDE_SESSION_LINKER_CLAUDE_DIR = "$env:LOCALAPPDATA\Claude-3p"
-wscript "Claude Session Linker.vbs"
-```
-
-### A sessão não aparece no Claude Desktop depois do vínculo
-
-Feche o Claude Desktop completamente pela bandeja do sistema e abra novamente logado na conta de destino.
-
-### O setup falhou
-
-Use a própria janela do setup para ver o progresso e tentar novamente. O log final também fica em:
-
-```text
-.app\logs\setup-result.txt
-```
-
-Depois rode o setup novamente.
-
-Se o erro indicar falta de permissão para gravar em `.app`, mova a pasta extraída para um local gravável do seu usuário e rode o setup de novo.
-
-### Setup manual por PowerShell
-
-O caminho recomendado é o VBS. Se precisar diagnosticar manualmente, abra o PowerShell na pasta do projeto e rode:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .app\setup.ps1
-```
-
-Adicione `-PauseOnExit` no final do comando se quiser manter a janela aberta após o setup.
-
-## Guia
-
-Veja [GUIA.md](GUIA.md) para o passo a passo de instalação, uso diário e recuperação.
+- [Escolher o guia do sistema operacional](GUIA.md)
+- [Instalação e uso no Windows](GUIA-WINDOWS.md)
+- [Instalação e uso no macOS](GUIA-MACOS.md)
 
 ## Aviso
 
