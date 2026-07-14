@@ -73,6 +73,8 @@ Se uma sessão vinculada não aparecer no Claude Desktop, feche o Claude Desktop
 
 O setup não precisa de administrador. O resultado também fica registrado em `.app/logs/setup-result.txt`.
 
+Se uma nova tentativa continuar falhando por causa do ambiente Python existente, abra o Terminal na pasta do projeto e execute `bash ".app/setup.sh" --recreate-venv` para recriar `.app/venv`.
+
 ### Preparar o Claude Desktop
 
 1. Abra o Claude Desktop.

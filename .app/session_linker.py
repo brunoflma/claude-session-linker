@@ -198,7 +198,7 @@ def _unique_paths(paths: list[Path]) -> list[Path]:
 
 
 def is_claude_data_dir(path: Path) -> bool:
-    return path.is_dir() and any(
+    return not path.is_symlink() and path.is_dir() and any(
         (path / child).exists()
         for child in ("config.json", "claude-code-sessions", "local-agent-mode-sessions")
     )
@@ -254,7 +254,7 @@ def discover_claude_dirs(
                 )
             except OSError:
                 pass
-    else:
+    elif platform == "darwin":
         base = _macos_app_support(macos_base)
         candidates.append(base / "Claude")
         try:
@@ -294,7 +294,9 @@ def resolve_claude_dirs(
         return candidates
     if platform.startswith("win") and appdata is not None:
         return [appdata / "Claude"]
-    return [_macos_app_support(macos_base) / "Claude"]
+    if platform == "darwin":
+        return [_macos_app_support(macos_base) / "Claude"]
+    raise RuntimeError(f"Unsupported platform: {platform}")
 
 
 CLAUDE_DIRS = resolve_claude_dirs(APPDATA, LOCALAPPDATA, os.environ.get(CLAUDE_DIR_ENV))
@@ -398,7 +400,9 @@ def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
         candidate = os.path.join(directory, name)
         if os.path.exists(candidate):
             return candidate
-    return name
+    # Fail closed on systems without the expected binary instead of consulting
+    # a user-controlled PATH (the subprocess call will safely fail).
+    return f"/usr/bin/{name}"
 
 
 def is_desktop_running(platform: str = _PLATFORM) -> bool:
@@ -413,12 +417,14 @@ def is_desktop_running(platform: str = _PLATFORM) -> bool:
             # Process names are plain ASCII regardless of console codepage, so a
             # raw byte search sidesteps pt-BR tasklist header decoding issues.
             return b"claude.exe" in out.stdout.lower()
-        # macOS/POSIX: match the Desktop app bundle, NOT the lowercase `claude`
+        if platform != "darwin":
+            return False
+        # macOS: match the Desktop app bundle, NOT the lowercase `claude`
         # Claude Code CLI. pgrep -f is case-sensitive, so the capitalized
         # `Claude.app/.../Claude` pattern excludes the CLI's `claude.app/.../claude`.
         pgrep_cmd = _get_system_executable("pgrep", platform)
         out = subprocess.run(
-            [pgrep_cmd, "-f", "Claude.app/Contents/MacOS/Claude"],
+            [pgrep_cmd, "-f", "Claude[.]app/Contents/MacOS/Claude($|[[:space:]])"],
             capture_output=True, timeout=5,
         )
         return out.returncode == 0 and bool(out.stdout.strip())
@@ -532,7 +538,7 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     zip_path = BACKUPS_DIR / f"{label}-{stamp}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in dir_path.rglob("*"):
-            if f.is_file():
+            if f.is_file() and not f.is_symlink():
                 zf.write(f, f.relative_to(dir_path.parent))
     return zip_path
 
@@ -580,6 +586,8 @@ def _new_cli_session_id(transcript_dir: Path) -> str:
 
 
 def _read_index_json(path: Path) -> dict:
+    if path.is_symlink():
+        raise OSError(f"Refusing to read a symlinked session index: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -589,6 +597,8 @@ def write_code_index_clone(
     source_account_id: str,
     origin_account_id: str,
 ) -> bool:
+    if dest_path.is_symlink():
+        raise OSError(f"Refusing to overwrite a symlinked session index: {dest_path}")
     source_data = _read_index_json(src_path)
     data = source_data
     source_cli_session_id = source_data.get("cliSessionId") or ""
@@ -618,6 +628,8 @@ def write_code_index_clone(
 
 
 def copy_index_with_link_metadata(src_path: Path, dest_path: Path, source_account_id: str, origin_account_id: str | None = None) -> None:
+    if src_path.is_symlink() or dest_path.is_symlink():
+        raise OSError("Refusing to copy a symlinked session index")
     shutil.copy2(src_path, dest_path)
     record_link_metadata(dest_path, source_account_id, origin_account_id or source_account_id)
 
@@ -637,7 +649,7 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         return
     text_suffixes = {".json", ".jsonl", ".md", ".txt", ".yml", ".yaml", ".toml", ".lock", ""}
     for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in text_suffixes:
+        if not path.is_file() or path.is_symlink() or path.suffix.lower() not in text_suffixes:
             continue
         try:
             text = path.read_text(encoding="utf-8")
@@ -658,6 +670,8 @@ def normalize_cowork_session_copy(
     source_account_id: str,
     origin_account_id: str,
 ) -> None:
+    if dest_path.is_symlink():
+        raise OSError(f"Refusing to overwrite a symlinked session index: {dest_path}")
     data = _read_index_json(src_path)
     if dest_data_dir:
         data["cwd"] = str(dest_data_dir / "outputs")

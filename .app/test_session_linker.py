@@ -184,6 +184,36 @@ class ClaudeProjectDirNameTests(unittest.TestCase):
 
 
 class SessionLinkerLogicTests(unittest.TestCase):
+    def test_backup_and_text_replacement_skip_symlinked_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "workspace"
+            outside = Path(tmp) / "outside.txt"
+            regular = root / "regular.txt"
+            linked = root / "linked.txt"
+            root.mkdir()
+            outside.write_text("old outside", encoding="utf-8")
+            regular.write_text("old inside", encoding="utf-8")
+            try:
+                linked.symlink_to(outside)
+            except OSError as exc:
+                self.skipTest(f"symlinks unavailable on this host: {exc}")
+
+            original_backups_dir = session_linker.BACKUPS_DIR
+            session_linker.BACKUPS_DIR = Path(tmp) / "backups"
+            session_linker.BACKUPS_DIR.mkdir()
+            try:
+                backup_path = session_linker.backup_dir_tree(root, "workspace")
+                with zipfile.ZipFile(backup_path) as archive:
+                    names = archive.namelist()
+                self.assertIn("workspace/regular.txt", names)
+                self.assertNotIn("workspace/linked.txt", names)
+
+                session_linker._replace_text_in_tree(root, {"old": "new"})
+                self.assertEqual(regular.read_text(encoding="utf-8"), "new inside")
+                self.assertEqual(outside.read_text(encoding="utf-8"), "old outside")
+            finally:
+                session_linker.BACKUPS_DIR = original_backups_dir
+
     def test_module_uses_explicit_claude_profile_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             appdata = Path(tmp) / "Roaming"
@@ -829,6 +859,24 @@ class SessionLinkerLogicTests(unittest.TestCase):
             finally:
                 session_linker.LINKS_FILE = original_links_file
 
+    def test_index_copy_and_clone_refuse_symlinked_destination(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "local_source.json"
+            outside = Path(tmp) / "outside.json"
+            dest = Path(tmp) / "local_dest.json"
+            src.write_text(json.dumps({"sessionId": "source"}), encoding="utf-8")
+            outside.write_text('{"protected": true}', encoding="utf-8")
+            try:
+                dest.symlink_to(outside)
+            except OSError as exc:
+                self.skipTest(f"symlinks unavailable on this host: {exc}")
+
+            with self.assertRaises(OSError):
+                session_linker.copy_index_with_link_metadata(src, dest, "account-a")
+            with self.assertRaises(OSError):
+                session_linker.write_code_index_clone(src, dest, "account-a", "account-a")
+            self.assertEqual(outside.read_text(encoding="utf-8"), '{"protected": true}')
+
     def test_existing_destination_updates_metadata_instead_of_failing(self):
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "local_source.json"
@@ -885,7 +933,7 @@ class MacDesktopDetectionTests(unittest.TestCase):
             args = mock_run.call_args[0][0]
             self.assertTrue(args[0].endswith("pgrep"))
             self.assertIn("-f", args)
-            self.assertIn("Claude.app/Contents/MacOS/Claude", args)
+            self.assertIn("Claude[.]app/Contents/MacOS/Claude($|[[:space:]])", args)
 
     def test_returns_false_when_only_cli_claude_running(self):
         from unittest.mock import patch, Mock
@@ -900,6 +948,25 @@ class MacDesktopDetectionTests(unittest.TestCase):
 
 
 class MacDiscoveryTests(unittest.TestCase):
+    def test_rejects_unsupported_platform(self):
+        with self.assertRaisesRegex(RuntimeError, "Unsupported platform"):
+            session_linker.resolve_claude_dirs(None, platform="linux")
+
+    def test_ignores_symlinked_claude_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "Application Support"
+            outside = Path(tmp) / "outside-profile"
+            base.mkdir()
+            outside.mkdir()
+            (outside / "config.json").write_text("{}", encoding="utf-8")
+            try:
+                (base / "Claude-evil").symlink_to(outside, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"symlinks unavailable on this host: {exc}")
+
+            found = session_linker.discover_claude_dirs(platform="darwin", macos_base=base)
+            self.assertEqual(found, [])
+
     def test_discovers_claude_and_claude_3p(self):
         base = Path(tempfile.mkdtemp())
         try:

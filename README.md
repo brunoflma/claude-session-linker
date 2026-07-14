@@ -69,6 +69,8 @@ Instalação:
 
 As raízes locais do Claude no macOS ficam em `~/Library/Application Support/Claude` e perfis alternativos como `~/Library/Application Support/Claude-3p`. Os transcripts ficam em `~/.claude/projects`, como no Windows.
 
+Se o setup encontrar um ambiente Python antigo ou corrompido, recrie-o pelo Terminal com `bash ".app/setup.sh" --recreate-venv`.
+
 ## Como usar
 
 1. Abra o Claude Desktop e use cada conta pelo menos uma vez para que as pastas locais sejam criadas.
