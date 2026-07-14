@@ -52,6 +52,23 @@ O setup abre uma janela gráfica, cria o ambiente Python isolado em `.app\venv` 
 
 Para instalação por Git, clone o repositório e rode o mesmo `00 - Setup Claude Session Linker.vbs`.
 
+## macOS
+
+Pré-requisitos macOS:
+
+- macOS com Claude Desktop instalado e pelo menos duas contas já usadas.
+- Homebrew (https://brew.sh) — usado pelo setup para instalar o `tkinter` do Python quando necessário.
+- Python 3.10+ (o setup detecta ou orienta a instalação).
+
+Instalação:
+
+1. Clone ou baixe o projeto em um local permanente.
+2. Dê duplo clique em `00 - Setup Claude Session Linker.command`.
+   - No primeiro uso, o macOS pode bloquear o arquivo. Clique com o botão direito → **Abrir**, ou libere em **Ajustes do Sistema → Privacidade e Segurança → Abrir Assim Mesmo**.
+3. Ao terminar, o app abre automaticamente, ou dê duplo clique em `Claude Session Linker.command`.
+
+As raízes locais do Claude no macOS ficam em `~/Library/Application Support/Claude` e perfis alternativos como `~/Library/Application Support/Claude-3p`. Os transcripts ficam em `~/.claude/projects`, como no Windows.
+
 ## Como usar
 
 1. Abra o Claude Desktop e use cada conta pelo menos uma vez para que as pastas locais sejam criadas.

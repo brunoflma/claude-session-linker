@@ -1,6 +1,6 @@
 # Guia do Claude Session Linker
 
-Este guia cobre o fluxo normal para instalar e usar o Claude Session Linker no Windows.
+Este guia cobre o fluxo normal para instalar e usar o Claude Session Linker no Windows e no macOS.
 
 ## Instalar
 
@@ -60,3 +60,54 @@ Se o setup falhar, use `Tentar novamente` na janela de configuração. O resulta
 Se o erro indicar falta de permissão para gravar em `.app`, mova a pasta do projeto para um local gravável do seu usuário e rode o setup de novo.
 
 Se uma sessão vinculada não aparecer no Claude Desktop, feche o Claude Desktop completamente pela bandeja do sistema e abra novamente na conta de destino.
+
+## Instalar no macOS
+
+### Instalar
+
+1. Clone ou baixe o projeto em um local permanente, por exemplo dentro de `~/Documents`.
+2. Dê duplo clique em `00 - Setup Claude Session Linker.command`.
+   - No primeiro uso, o Gatekeeper do macOS pode bloquear o arquivo por ele não ser assinado. Clique com o botão direito no arquivo → **Abrir**, ou libere em **Ajustes do Sistema → Privacidade e Segurança → Abrir Assim Mesmo**.
+3. O duplo clique abre uma janela de Terminal e mostra o progresso do setup ali. O setup procura um Python 3.10 ou superior já instalado, usa o Homebrew (https://brew.sh) para instalar o `python-tk` automaticamente caso o `tkinter` esteja faltando, cria o ambiente isolado em `.app/venv` e instala `customtkinter`, `darkdetect` e `pillow`.
+4. Ao final, pressione Enter no Terminal para abrir o aplicativo automaticamente, ou dê duplo clique em `Claude Session Linker.command`.
+
+O setup não precisa de administrador. O resultado também fica registrado em `.app/logs/setup-result.txt`.
+
+### Preparar o Claude Desktop
+
+1. Abra o Claude Desktop.
+2. Entre em cada conta que você quer usar com o Session Linker.
+3. Em cada conta, abra pelo menos uma vez a aba `Code` ou `Cowork`.
+4. Feche o Claude Desktop completamente (Cmd+Q, não só a janela) antes de vincular ou remover sessões.
+
+### Vincular, comparar e remover sessão
+
+1. Dê duplo clique em `Claude Session Linker.command`.
+2. Escolha a aba `Code` ou `Cowork`.
+3. Localize a sessão na conta de origem.
+4. Clique em `Vincular conta`, escolha a conta de destino e depois reabra o Claude Desktop logado nela.
+5. Clique em `Comparar` para ver qual cópia tem mais mensagens ou atividade mais recente entre contas.
+6. Clique em `Remover` para apagar uma sessão apenas de uma conta. O app cria backup antes de remover; em sessões `Code` só o índice daquela conta é removido, o transcript em `~/.claude/projects` é preservado, e em sessões `Cowork` o índice e a pasta local daquela sessão são removidos da conta selecionada.
+
+### Perfis Claude alternativos no macOS
+
+O Claude Session Linker detecta `~/Library/Application Support/Claude` e qualquer perfil alternativo que combine com `Claude*` na mesma pasta, como `~/Library/Application Support/Claude-3p`. Os transcripts ficam em `~/.claude/projects`, a mesma pasta usada no Windows.
+
+Para limitar a execução a uma raiz específica, abra o Terminal na pasta do projeto e rode:
+
+```bash
+export CLAUDE_SESSION_LINKER_CLAUDE_DIR="$HOME/Library/Application Support/Claude-3p"
+bash "Claude Session Linker.command"
+```
+
+### Recuperar de problema no macOS
+
+Backups ficam em `.app/backups`.
+
+Se o setup falhar, dê duplo clique novamente em `00 - Setup Claude Session Linker.command`. O resultado também fica em `.app/logs/setup-result.txt`.
+
+Se o Gatekeeper continuar bloqueando o arquivo depois do clique com o botão direito → Abrir, confirme em **Ajustes do Sistema → Privacidade e Segurança → Abrir Assim Mesmo**.
+
+Se o erro indicar falta de permissão para gravar em `.app`, mova a pasta do projeto para um local gravável do seu usuário (por exemplo dentro de `~/Documents`) e rode o setup de novo.
+
+Se uma sessão vinculada não aparecer no Claude Desktop, feche o Claude Desktop completamente (Cmd+Q) e abra novamente na conta de destino.
