@@ -221,19 +221,44 @@ def claude_dir_activity_time(path: Path) -> float:
     return max(mtimes, default=0.0)
 
 
-def discover_claude_dirs(appdata: Path, localappdata: Path | None = None) -> list[Path]:
-    candidates = [appdata / "Claude"]
-    if localappdata is not None:
-        candidates.extend([localappdata / "Claude-3p", localappdata / "Claude"])
+def _macos_app_support(macos_base: Path | None = None) -> Path:
+    if macos_base is not None:
+        return macos_base
+    env_base = os.environ.get(MACOS_BASE_ENV)
+    if env_base:
+        return Path(env_base).expanduser()
+    return Path.home() / "Library" / "Application Support"
+
+
+def discover_claude_dirs(
+    appdata: Path | None = None,
+    localappdata: Path | None = None,
+    *,
+    platform: str = _PLATFORM,
+    macos_base: Path | None = None,
+) -> list[Path]:
+    candidates: list[Path] = []
+    if platform.startswith("win"):
+        if appdata is not None:
+            candidates.append(appdata / "Claude")
+        if localappdata is not None:
+            candidates.extend([localappdata / "Claude-3p", localappdata / "Claude"])
+            try:
+                candidates.extend(sorted(localappdata.glob("Claude*")))
+            except OSError:
+                pass
+            try:
+                candidates.extend(
+                    package / "LocalCache" / "Roaming" / "Claude"
+                    for package in sorted((localappdata / "Packages").glob("Claude_*"))
+                )
+            except OSError:
+                pass
+    else:
+        base = _macos_app_support(macos_base)
+        candidates.append(base / "Claude")
         try:
-            candidates.extend(sorted(localappdata.glob("Claude*")))
-        except OSError:
-            pass
-        try:
-            candidates.extend(
-                package / "LocalCache" / "Roaming" / "Claude"
-                for package in sorted((localappdata / "Packages").glob("Claude_*"))
-            )
+            candidates.extend(sorted(base.glob("Claude*")))
         except OSError:
             pass
     valid = [path for path in _unique_paths(candidates) if is_claude_data_dir(path)]
@@ -242,22 +267,34 @@ def discover_claude_dirs(appdata: Path, localappdata: Path | None = None) -> lis
 
 
 def resolve_claude_dir(
-    appdata: Path,
+    appdata: Path | None,
     localappdata: Path | None = None,
     explicit_dir: str | os.PathLike | None = None,
+    *,
+    platform: str = _PLATFORM,
+    macos_base: Path | None = None,
 ) -> Path:
-    return resolve_claude_dirs(appdata, localappdata, explicit_dir)[0]
+    return resolve_claude_dirs(
+        appdata, localappdata, explicit_dir, platform=platform, macos_base=macos_base
+    )[0]
 
 
 def resolve_claude_dirs(
-    appdata: Path,
+    appdata: Path | None,
     localappdata: Path | None = None,
     explicit_dir: str | os.PathLike | None = None,
+    *,
+    platform: str = _PLATFORM,
+    macos_base: Path | None = None,
 ) -> list[Path]:
     if explicit_dir:
         return [Path(explicit_dir).expanduser()]
-    candidates = discover_claude_dirs(appdata, localappdata)
-    return candidates if candidates else [appdata / "Claude"]
+    candidates = discover_claude_dirs(appdata, localappdata, platform=platform, macos_base=macos_base)
+    if candidates:
+        return candidates
+    if platform.startswith("win") and appdata is not None:
+        return [appdata / "Claude"]
+    return [_macos_app_support(macos_base) / "Claude"]
 
 
 CLAUDE_DIRS = resolve_claude_dirs(APPDATA, LOCALAPPDATA, os.environ.get(CLAUDE_DIR_ENV))

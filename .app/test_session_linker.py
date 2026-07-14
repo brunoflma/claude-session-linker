@@ -47,6 +47,7 @@ def load_session_linker_with_env(appdata: Path, localappdata: Path, claude_dir: 
     original_claude_dir = os.environ.get(CLAUDE_DIR_ENV)
     os.environ["APPDATA"] = str(appdata)
     os.environ["LOCALAPPDATA"] = str(localappdata)
+    os.environ["CLAUDE_SESSION_LINKER_PLATFORM"] = "win32"
     if claude_dir is None:
         os.environ.pop(CLAUDE_DIR_ENV, None)
     else:
@@ -69,6 +70,27 @@ def load_session_linker_with_env(appdata: Path, localappdata: Path, claude_dir: 
             os.environ.pop(CLAUDE_DIR_ENV, None)
         else:
             os.environ[CLAUDE_DIR_ENV] = original_claude_dir
+        os.environ.pop("CLAUDE_SESSION_LINKER_PLATFORM", None)
+
+
+def load_session_linker_macos(macos_base: Path, claude_dir: Path | None = None):
+    saved = dict(os.environ)
+    os.environ.pop("APPDATA", None)
+    os.environ.pop("LOCALAPPDATA", None)
+    os.environ["CLAUDE_SESSION_LINKER_PLATFORM"] = "darwin"
+    os.environ["CLAUDE_SESSION_LINKER_MACOS_BASE"] = str(macos_base)
+    if claude_dir is None:
+        os.environ.pop(CLAUDE_DIR_ENV, None)
+    else:
+        os.environ[CLAUDE_DIR_ENV] = str(claude_dir)
+    try:
+        env_spec = importlib.util.spec_from_file_location("session_linker_macos_test", MODULE_PATH)
+        module = importlib.util.module_from_spec(env_spec)
+        env_spec.loader.exec_module(module)
+        return module
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
 
 
 def make_session(name, cli_id, last_activity, path_name=None):
@@ -852,6 +874,54 @@ class SessionLinkerLogicTests(unittest.TestCase):
                 self.assertNotIn("poisoned", cmd.lower())
                 self.assertTrue("system32" in cmd.lower())
                 self.assertTrue(os.path.isabs(cmd) or cmd.startswith("C:\\") or cmd.startswith("c:\\"))
+
+
+class MacDiscoveryTests(unittest.TestCase):
+    def test_discovers_claude_and_claude_3p(self):
+        base = Path(tempfile.mkdtemp())
+        try:
+            for name in ("Claude", "Claude-3p"):
+                d = base / name
+                d.mkdir(parents=True)
+                (d / "config.json").write_text("{}", encoding="utf-8")
+            found = session_linker.discover_claude_dirs(platform="darwin", macos_base=base)
+            names = {p.name for p in found}
+            self.assertEqual(names, {"Claude", "Claude-3p"})
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+
+    def test_ignores_non_claude_dirs(self):
+        base = Path(tempfile.mkdtemp())
+        try:
+            (base / "Claude").mkdir(parents=True)
+            (base / "Claude" / "config.json").write_text("{}", encoding="utf-8")
+            (base / "Spotify").mkdir(parents=True)  # not a Claude data dir
+            found = session_linker.discover_claude_dirs(platform="darwin", macos_base=base)
+            self.assertEqual([p.name for p in found], ["Claude"])
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+
+    def test_windows_branch_still_works_on_any_host(self):
+        appdata = Path(tempfile.mkdtemp())
+        try:
+            d = appdata / "Claude"
+            d.mkdir(parents=True)
+            (d / "config.json").write_text("{}", encoding="utf-8")
+            found = session_linker.discover_claude_dirs(appdata, None, platform="win32")
+            self.assertIn("Claude", {p.name for p in found})
+        finally:
+            shutil.rmtree(appdata, ignore_errors=True)
+
+    def test_module_init_resolves_macos_roots(self):
+        base = Path(tempfile.mkdtemp())
+        try:
+            d = base / "Claude"
+            (d / "claude-code-sessions").mkdir(parents=True)
+            module = load_session_linker_macos(base)
+            self.assertEqual(module.CLAUDE_DIR.name, "Claude")
+            self.assertEqual(module.SESSIONS_DIR, d / "claude-code-sessions")
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
 
 
 if __name__ == "__main__":
