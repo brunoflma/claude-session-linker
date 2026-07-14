@@ -16,6 +16,28 @@ session_linker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(session_linker)
 
 
+class MacInitTests(unittest.TestCase):
+    def test_module_imports_without_appdata_env(self):
+        # Simulate macOS: no APPDATA/LOCALAPPDATA, platform forced to darwin.
+        env = dict(os.environ)
+        env.pop("APPDATA", None)
+        env.pop("LOCALAPPDATA", None)
+        env["CLAUDE_SESSION_LINKER_PLATFORM"] = "darwin"
+        env.pop(CLAUDE_DIR_ENV, None)
+        saved = dict(os.environ)
+        os.environ.clear()
+        os.environ.update(env)
+        try:
+            spec_local = importlib.util.spec_from_file_location("session_linker_macinit", MODULE_PATH)
+            module = importlib.util.module_from_spec(spec_local)
+            spec_local.loader.exec_module(module)  # must not raise
+            self.assertEqual(module._PLATFORM, "darwin")
+            self.assertIsNone(module.APPDATA)
+        finally:
+            os.environ.clear()
+            os.environ.update(saved)
+
+
 CLAUDE_DIR_ENV = "CLAUDE_SESSION_LINKER_CLAUDE_DIR"
 
 

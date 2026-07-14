@@ -46,6 +46,8 @@ Safety:
     change in a future version. Fully quit Desktop (system tray, not just
     the window) before linking, and restart it afterwards to see changes.
 """
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -177,9 +179,11 @@ DEV_CREDIT = "Desenvolvido por Bruno Ferreira"
 # ---------------------------------------------------------------------------
 # Data layer
 # ---------------------------------------------------------------------------
-APPDATA = Path(os.environ["APPDATA"])
+_PLATFORM = os.environ.get("CLAUDE_SESSION_LINKER_PLATFORM", sys.platform)
+APPDATA = Path(os.environ["APPDATA"]) if os.environ.get("APPDATA") else None
 LOCALAPPDATA = Path(os.environ["LOCALAPPDATA"]) if os.environ.get("LOCALAPPDATA") else None
 CLAUDE_DIR_ENV = "CLAUDE_SESSION_LINKER_CLAUDE_DIR"
+MACOS_BASE_ENV = "CLAUDE_SESSION_LINKER_MACOS_BASE"  # test hook for the App Support base
 
 
 def _unique_paths(paths: list[Path]) -> list[Path]:
