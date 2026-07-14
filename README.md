@@ -2,7 +2,7 @@
 
 Interface local para visualizar, vincular, comparar e remover sessões do Claude Desktop entre contas diferentes no mesmo computador.
 
-Versão atual: 1.10.0.
+Versão atual: 2.0.0.
 
 Compatível com Windows 10/11 e macOS.
 
