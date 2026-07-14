@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# App runtime artifacts (never publish per AGENTS.md release protocol)
+.app/venv/
+.app/backups/
+.app/logs/
+.app/__pycache__/
+
+# SDD scratch (subagent-driven-development workspace)
+.superpowers/
+
+# macOS
+.DS_Store
