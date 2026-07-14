@@ -746,7 +746,7 @@ def remove_session_from_account(session: dict, mode: str):
         removed = "Sessão removida desta conta."
     else:
         removed = "Sessão removida desta conta. Transcript compartilhado preservado."
-    return True, f"{removed}\nBackup salvo em backups\\{backup_path.name}."
+    return True, f"{removed}\nBackup salvo em backups/{backup_path.name}."
 
 
 def link_session_to_account(session: dict, target_account_id: str):
@@ -776,7 +776,7 @@ def link_session_to_account(session: dict, target_account_id: str):
         return False, f"Falha ao vincular{backup_info}: {e}"
 
     return True, (
-        f"Vinculado. Backup salvo em backups\\{backup_path.name}.\n\n"
+        f"Vinculado. Backup salvo em backups/{backup_path.name}.\n\n"
         "Feche o Claude Desktop completamente (bandeja do sistema) e abra de "
         "novo, logado na conta de destino, para ver a sessão na sidebar."
     )
@@ -807,7 +807,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
             )
             return True, (
                 "Vínculo atualizado para esta conta.\n\n"
-                f"A sessão já existia aqui; backup salvo em backups\\{backup_path.name}. "
+                f"A sessão já existia aqui; backup salvo em backups/{backup_path.name}. "
                 "O Session Linker reparou o caminho interno do Cowork e manteve a origem original visível na lista."
             )
         except Exception as e:
@@ -839,7 +839,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
         return False, f"Falha ao copiar (backup salvo em {backup_path.name}): {e}"
 
     return True, (
-        f"Vinculado. Backup salvo em backups\\{backup_path.name}.\n\n"
+        f"Vinculado. Backup salvo em backups/{backup_path.name}.\n\n"
         "Feche o Claude Desktop completamente (bandeja do sistema) e abra de "
         "novo, logado na conta de destino, para ver a sessão do Cowork."
     )

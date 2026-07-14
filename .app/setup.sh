@@ -28,6 +28,7 @@ MIN_MINOR=10
 
 if ! mkdir -p "$LOG_DIR" 2>/dev/null; then
   echo "Could not create .app/logs. Move the project to a writable folder and retry."
+  if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Press Enter to close" _; fi
   exit 6
 fi
 
@@ -55,7 +56,7 @@ echo "Claude Session Linker $VERSION - configuring environment (macOS)..."
 
 # --- 1. Find a 3.10+ interpreter (prefer newest) ----------------------------
 PYTHON=""
-for cand in python3.13 python3.12 python3.11 python3.10 python3; do
+for cand in python3.15 python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
   path="$(command -v "$cand" 2>/dev/null)" || continue
   [ -n "$path" ] || continue
   if py_version_ok "$path"; then PYTHON="$path"; break; fi
@@ -92,6 +93,9 @@ if [ ! -d "$VENV" ]; then
   "$PYTHON" -m venv "$VENV" || finish 3 "Failed to create the venv in .app/venv."
 fi
 VENV_PY="$VENV/bin/python"
+if [ ! -x "$VENV_PY" ]; then
+  finish 3 "Failed to create a working venv interpreter in .app/venv."
+fi
 
 # --- 4. Install dependencies -------------------------------------------------
 "$VENV_PY" -m pip install --upgrade pip >/dev/null 2>&1 || true

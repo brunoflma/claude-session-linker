@@ -6,6 +6,8 @@
 # existirem. Executa .app\setup.ps1 e mostra o progresso em uma janela com a
 # identidade visual do Claude Session Linker.
 # ============================================================================
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
