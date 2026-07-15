@@ -436,6 +436,9 @@ def scan_sessions() -> dict:
     """{accountUUID: [ {path, sessionId, cliSessionId, cwd, title,
     lastActivityAt, isArchived, workspaceUUID}, ... ] } sorted newest first."""
     result: dict[str, list[dict]] = {}
+    # Bolt Optimization: Load link_registry once before looping to prevent
+    # O(N) disk reads and JSON parsing per session file
+    link_registry = load_link_registry()
     for claude_dir in CLAUDE_DIRS:
         sessions_dir = claude_dir / "claude-code-sessions"
         if not sessions_dir.exists():
@@ -453,7 +456,7 @@ def scan_sessions() -> dict:
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
                         continue
-                    link_metadata = get_link_metadata(f)
+                    link_metadata = link_registry.get(_link_key(f), {})
                     account_sessions.append({
                         "path": f,
                         "data_dir": None,
@@ -489,6 +492,9 @@ def scan_cowork_sessions() -> dict:
     whenever a session is linked ("data_dir" below).
     """
     result: dict[str, list[dict]] = {}
+    # Bolt Optimization: Load link_registry once before looping to prevent
+    # O(N) disk reads and JSON parsing per session file
+    link_registry = load_link_registry()
     for claude_dir in CLAUDE_DIRS:
         cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
         if not cowork_sessions_dir.exists():
@@ -506,7 +512,7 @@ def scan_cowork_sessions() -> dict:
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
                         continue
-                    link_metadata = get_link_metadata(f)
+                    link_metadata = link_registry.get(_link_key(f), {})
                     data_dir = workspace_dir / f.stem
                     account_sessions.append({
                         "path": f,
