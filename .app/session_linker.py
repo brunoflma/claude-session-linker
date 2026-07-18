@@ -905,6 +905,11 @@ def find_transcript_path(cli_session_id: str):
     Code's cwd-to-folder-name hashing scheme."""
     if not cli_session_id or not CLAUDE_PROJECTS_DIR.exists():
         return None
+
+    # Prevent path traversal by rejecting path separators in the ID
+    if "/" in cli_session_id or "\\" in cli_session_id or ".." in cli_session_id:
+        return None
+
     matches = list(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"))
     return matches[0] if matches else None
 

@@ -184,6 +184,23 @@ class ClaudeProjectDirNameTests(unittest.TestCase):
 
 
 class SessionLinkerLogicTests(unittest.TestCase):
+    def test_find_transcript_path_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            projects_dir = Path(tmp) / "projects"
+            projects_dir.mkdir()
+            secret_file = Path(tmp) / "secret.jsonl"
+            secret_file.write_text("secret", encoding="utf-8")
+
+            original_projects_dir = session_linker.CLAUDE_PROJECTS_DIR
+            session_linker.CLAUDE_PROJECTS_DIR = projects_dir
+            try:
+                self.assertIsNone(session_linker.find_transcript_path("../secret"))
+                self.assertIsNone(session_linker.find_transcript_path("..\\secret"))
+                self.assertIsNone(session_linker.find_transcript_path("/etc/passwd"))
+                self.assertIsNone(session_linker.find_transcript_path("C:\\Windows\\System32\\cmd.exe"))
+            finally:
+                session_linker.CLAUDE_PROJECTS_DIR = original_projects_dir
+
     def test_backup_and_text_replacement_skip_symlinked_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "workspace"
