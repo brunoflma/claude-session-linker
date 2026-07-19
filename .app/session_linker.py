@@ -903,7 +903,10 @@ def find_transcript_path(cli_session_id: str):
     which project-folder hash it lives under -- session ids are UUIDs, so a
     filename match is unambiguous without needing to reproduce Claude
     Code's cwd-to-folder-name hashing scheme."""
-    if not cli_session_id or not CLAUDE_PROJECTS_DIR.exists():
+    # SECURITY: Validate cli_session_id to prevent path traversal and DoS crashes
+    if not cli_session_id or not re.match(r"^[A-Za-z0-9\-]+\Z", cli_session_id):
+        return None
+    if not CLAUDE_PROJECTS_DIR.exists():
         return None
     matches = list(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"))
     return matches[0] if matches else None
