@@ -78,10 +78,10 @@ ROOT_DIR = APP_DIR.parent
 ICON_PATH = APP_DIR / "icon.ico"
 ICON_PNG = APP_DIR / "icon.png"
 LOG_DIR = APP_DIR / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 ERR_LOG = LOG_DIR / "session-linker-error.log"
 BACKUPS_DIR = APP_DIR / "backups"
-BACKUPS_DIR.mkdir(exist_ok=True)
+BACKUPS_DIR.mkdir(exist_ok=True, mode=0o700)
 LABELS_FILE = APP_DIR / "account_labels.json"
 LINKS_FILE = APP_DIR / "session_links.json"
 LINKED_FROM_ACCOUNT_KEY = "_sessionLinkerLinkedFromAccount"

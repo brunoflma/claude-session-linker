@@ -26,7 +26,7 @@ RESULT="$LOG_DIR/setup-result.txt"
 MIN_MAJOR=3
 MIN_MINOR=10
 
-if ! mkdir -p "$LOG_DIR" 2>/dev/null; then
+if ! mkdir -m 700 -p "$LOG_DIR" 2>/dev/null; then
   echo "Could not create .app/logs. Move the project to a writable folder and retry."
   if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Press Enter to close" _; fi
   exit 6
