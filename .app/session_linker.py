@@ -541,7 +541,9 @@ def scan_cowork_sessions() -> dict:
 
 def backup_dir_tree(dir_path: Path, label: str) -> Path:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    zip_path = BACKUPS_DIR / f"{label}-{stamp}.zip"
+    # Security: sanitize label to prevent path traversal if account/profile name is malicious
+    safe_label = re.sub(r"[^A-Za-z0-9\-\s]", "-", label).strip("-")
+    zip_path = BACKUPS_DIR / f"{safe_label}-{stamp}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in dir_path.rglob("*"):
             if f.is_file() and not f.is_symlink():
@@ -910,6 +912,10 @@ def find_transcript_path(cli_session_id: str):
     filename match is unambiguous without needing to reproduce Claude
     Code's cwd-to-folder-name hashing scheme."""
     if not cli_session_id or not CLAUDE_PROJECTS_DIR.exists():
+        return None
+    # Security: Ensure cli_session_id is just a UUID/alphanumeric to prevent
+    # path traversal or glob injection if a local_*.json was modified maliciously.
+    if not re.match(r"^[A-Za-z0-9\-]+$", cli_session_id):
         return None
     matches = list(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"))
     return matches[0] if matches else None
