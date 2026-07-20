@@ -1694,6 +1694,8 @@ class SessionLinkerApp(ctk.CTk):
             if getattr(dialog, "_remove_completed", False):
                 self.refresh()
 
+        dialog.bind("<Escape>", lambda _e: close_dialog())
+
         actions = self._dialog_actions(box)
         actions.pack(fill="x", padx=18, pady=(6, 18))
         cancel_btn = self._dialog_button(actions, "Cancelar", close_dialog, "secondary", "left")
@@ -1842,6 +1844,8 @@ class SessionLinkerApp(ctk.CTk):
             if getattr(dialog, "_link_completed", False):
                 self.refresh()
 
+        dialog.bind("<Escape>", lambda _e: close_dialog())
+
         actions = self._dialog_actions(box)
         actions.pack(side="bottom", fill="x", padx=18, pady=(4, 18))
         close_btn = self._dialog_button(actions, "Cancelar", close_dialog, "secondary", "left")
@@ -1932,6 +1936,8 @@ class SessionLinkerApp(ctk.CTk):
                 border_width=1, border_color=BRD,
                 command=lambda a=a, s=s, m=mode: (dialog.destroy(), self._show_comparison(source, (a, s), m)),
             ).pack(fill="x", pady=(0, 6))
+
+        dialog.bind("<Escape>", lambda _e: dialog.destroy())
 
         actions = self._dialog_actions(box)
         actions.pack(fill="x", padx=16, pady=(0, 16))
@@ -2024,6 +2030,8 @@ class SessionLinkerApp(ctk.CTk):
             self.after(0, lambda: apply_results(pa, pb))
 
         threading.Thread(target=worker, daemon=True).start()
+
+        dialog.bind("<Escape>", lambda _e: dialog.destroy())
 
         actions = self._dialog_actions(box)
         actions.pack(fill="x", padx=16, pady=(6, 16))
