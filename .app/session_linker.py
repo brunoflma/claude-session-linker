@@ -917,8 +917,10 @@ def find_transcript_path(cli_session_id: str):
     # path traversal or glob injection if a local_*.json was modified maliciously.
     if not re.match(r"^[A-Za-z0-9\-]+$", cli_session_id):
         return None
-    matches = list(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"))
-    return matches[0] if matches else None
+    # Bolt Optimization: Use next() instead of list() to short-circuit the
+    # recursive directory traversal as soon as the first match is found,
+    # avoiding unnecessary disk I/O on large project directories.
+    return next(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"), None)
 
 
 def parse_iso_ts(ts):
