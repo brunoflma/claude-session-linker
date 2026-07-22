@@ -8,6 +8,7 @@ import time
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 
 MODULE_PATH = Path(__file__).with_name("session_linker.py")
@@ -946,6 +947,26 @@ class MacDesktopDetectionTests(unittest.TestCase):
         path = session_linker._get_system_executable("pgrep", platform="darwin")
         self.assertTrue(path == "/usr/bin/pgrep" or path.endswith("/pgrep") or path == "pgrep")
 
+
+class BackupSecurityTests(unittest.TestCase):
+    def test_backup_permissions_posix(self):
+        # We patch os.name directly around backup_dir_tree execution to simulate posix
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            session_linker.BACKUPS_DIR = tmp_path
+
+            src = tmp_path / "src"
+            src.mkdir()
+            (src / "test.txt").write_text("hello", encoding="utf-8")
+
+            with patch("os.name", "posix"):
+                # Stub out chmod to capture calls, as Windows won't actually apply posix permissions
+                # We need to use mock to intercept the path.chmod call inside backup_dir_tree
+                with patch("pathlib.Path.chmod") as mock_chmod:
+                    out = session_linker.backup_dir_tree(src, "testlabel")
+                    # Ensure chmod was called with 0o600 on the zip file
+                    mock_chmod.assert_called_with(0o600)
+                    self.assertTrue(out.exists())
 
 class MacDiscoveryTests(unittest.TestCase):
     def test_rejects_unsupported_platform(self):

@@ -1,0 +1,4 @@
+## 2024-07-21 - [Secure Artifact Permissions]
+**Vulnerability:** Sensitive Cowork workspace backups and application logs (which could contain API keys, sensitive context, and local code copies) were created with default file permissions on POSIX systems, potentially allowing unauthorized read access by other local users on the machine.
+**Learning:** In desktop applications working with potentially sensitive LLM contexts/workspaces, even local filesystem artifacts must be explicitly scoped down rather than trusting system default umask. `chmod` operations must be conditionally applied only on POSIX systems (`os.name == "posix"`) to avoid crashing on Windows platforms.
+**Prevention:** Implement wrappers or helpers (e.g. `_secure_mkdir`) that explicitly enforce `0o700` for directories and `0o600` for files whenever dealing with logs or backups.

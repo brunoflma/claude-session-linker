@@ -77,11 +77,16 @@ APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 ICON_PATH = APP_DIR / "icon.ico"
 ICON_PNG = APP_DIR / "icon.png"
+def _secure_mkdir(path: Path, parents: bool = False) -> None:
+    path.mkdir(parents=parents, exist_ok=True)
+    if os.name == "posix":
+        path.chmod(0o700)
+
 LOG_DIR = APP_DIR / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+_secure_mkdir(LOG_DIR, parents=True)
 ERR_LOG = LOG_DIR / "session-linker-error.log"
 BACKUPS_DIR = APP_DIR / "backups"
-BACKUPS_DIR.mkdir(exist_ok=True)
+_secure_mkdir(BACKUPS_DIR)
 LABELS_FILE = APP_DIR / "account_labels.json"
 LINKS_FILE = APP_DIR / "session_links.json"
 LINKED_FROM_ACCOUNT_KEY = "_sessionLinkerLinkedFromAccount"
@@ -98,8 +103,11 @@ if _TCL.exists():
 
 def _log(message):
     try:
+        existed = ERR_LOG.exists()
         with ERR_LOG.open("a", encoding="utf-8") as f:
             f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+        if not existed and os.name == "posix":
+            ERR_LOG.chmod(0o600)
     except Exception:
         pass
 
@@ -548,6 +556,8 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
         for f in dir_path.rglob("*"):
             if f.is_file() and not f.is_symlink():
                 zf.write(f, f.relative_to(dir_path.parent))
+    if os.name == "posix":
+        zip_path.chmod(0o600)
     return zip_path
 
 
