@@ -1,3 +1,0 @@
-## 2024-07-22 - [Short-circuiting file search with next()]
-**Learning:** In heavily nested file structures (like Claude Desktop's projects directory), consuming a generator returned by `rglob` via `list()` performs a full directory traversal, evaluating the entire filesystem tree even if the required match is found early. This becomes a severe bottleneck (O(N) filesystem operations per call) when looking up single files, especially during bulk operations like duplicate scanning where the lookup happens in a tight loop.
-**Action:** Use `next(path.rglob(pattern), None)` instead of `list(path.rglob(pattern))[0]` to short-circuit the filesystem traversal as soon as the first matching file is discovered.
