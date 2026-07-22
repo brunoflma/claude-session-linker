@@ -453,6 +453,8 @@ def scan_sessions() -> dict:
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
+                        if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                            continue
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
                         continue
@@ -509,6 +511,8 @@ def scan_cowork_sessions() -> dict:
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
+                        if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                            continue
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
                         continue
@@ -596,6 +600,8 @@ def _new_cli_session_id(transcript_dir: Path) -> str:
 def _read_index_json(path: Path) -> dict:
     if path.is_symlink():
         raise OSError(f"Refusing to read a symlinked session index: {path}")
+    if path.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+        raise OSError(f"Refusing to read an unusually large session index: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -660,6 +666,8 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         if not path.is_file() or path.is_symlink() or path.suffix.lower() not in text_suffixes:
             continue
         try:
+            if path.stat().st_size > 25 * 1024 * 1024:  # Security: 25MB limit
+                continue
             text = path.read_text(encoding="utf-8")
         except Exception:
             continue
