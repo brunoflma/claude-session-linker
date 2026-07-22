@@ -1503,9 +1503,25 @@ class SessionLinkerApp(ctk.CTk):
             items = [(self.selected_account, s) for s in self.sessions_by_account.get(self.selected_account, [])]
 
         if not items:
+            empty_frame = ctk.CTkFrame(self._scroll, fg_color="transparent")
+            empty_frame.pack(fill="x", pady=(40, 20))
+            is_cowork = self.session_mode == "cowork"
+            icon = "🌐" if is_cowork else "💻"
+            mode_name = "Cowork" if is_cowork else "Code"
             ctk.CTkLabel(
-                self._scroll, text="Nenhuma sessão encontrada.", font=self._f_s, text_color=INK2,
-            ).pack(anchor="w", pady=20)
+                empty_frame, text=icon, font=ctk.CTkFont(family="Segoe UI Emoji", size=42)
+            ).pack(pady=(0, 16))
+            ctk.CTkLabel(
+                empty_frame, text=f"Nenhuma sessão do {mode_name} encontrada", font=self._f_b, text_color=INK,
+            ).pack(pady=(0, 6))
+            help_text = (
+                f"Abra o Claude Desktop e inicie uma conversa no {mode_name} para que ela apareça aqui."
+                if self.selected_account is None else
+                f"Esta conta ainda não possui sessões do {mode_name}."
+            )
+            ctk.CTkLabel(
+                empty_frame, text=help_text, font=self._f_s, text_color=INK2, wraplength=400,
+            ).pack()
             return
 
         for account_id, session in items:
