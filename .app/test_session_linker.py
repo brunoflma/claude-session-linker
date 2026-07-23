@@ -959,14 +959,27 @@ class BackupSecurityTests(unittest.TestCase):
             src.mkdir()
             (src / "test.txt").write_text("hello", encoding="utf-8")
 
+            real_fd, real_path = tempfile.mkstemp()
+            os.close(real_fd)
+            os.unlink(real_path) # We must delete it because O_EXCL will fail if it exists
+
             with patch("os.name", "posix"):
-                # Stub out chmod to capture calls, as Windows won't actually apply posix permissions
-                # We need to use mock to intercept the path.chmod call inside backup_dir_tree
-                with patch("pathlib.Path.chmod") as mock_chmod:
+                real_os_open = os.open
+
+                def mock_os_open(path, flags, mode=0o777, *args, **kwargs):
+                    if str(path).endswith(".zip"):
+                        # intercept the zip file creation
+                        return real_os_open(real_path, flags, mode, *args, **kwargs)
+                    return real_os_open(path, flags, mode, *args, **kwargs)
+
+                with patch("os.open", side_effect=mock_os_open) as mock_open:
                     out = session_linker.backup_dir_tree(src, "testlabel")
-                    # Ensure chmod was called with 0o600 on the zip file
-                    mock_chmod.assert_called_with(0o600)
-                    self.assertTrue(out.exists())
+
+                    expected_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                    mock_open.assert_any_call(out, expected_flags, 0o600)
+
+            if os.path.exists(real_path):
+                os.unlink(real_path)
 
 class MacDiscoveryTests(unittest.TestCase):
     def test_rejects_unsupported_platform(self):

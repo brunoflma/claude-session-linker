@@ -78,7 +78,7 @@ ROOT_DIR = APP_DIR.parent
 ICON_PATH = APP_DIR / "icon.ico"
 ICON_PNG = APP_DIR / "icon.png"
 def _secure_mkdir(path: Path, parents: bool = False) -> None:
-    path.mkdir(parents=parents, exist_ok=True)
+    path.mkdir(parents=parents, exist_ok=True, mode=0o700)
     if os.name == "posix":
         path.chmod(0o700)
 
@@ -103,11 +103,14 @@ if _TCL.exists():
 
 def _log(message):
     try:
-        existed = ERR_LOG.exists()
-        with ERR_LOG.open("a", encoding="utf-8") as f:
-            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-        if not existed and os.name == "posix":
-            ERR_LOG.chmod(0o600)
+        if os.name == "posix":
+            flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+            fd = os.open(ERR_LOG, flags, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+        else:
+            with ERR_LOG.open("a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
     except Exception:
         pass
 
@@ -556,12 +559,21 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     # Security: sanitize label to prevent path traversal if account/profile name is malicious
     safe_label = re.sub(r"[^A-Za-z0-9\-\s]", "-", label).strip("-")
     zip_path = BACKUPS_DIR / f"{safe_label}-{stamp}.zip"
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in dir_path.rglob("*"):
-            if f.is_file() and not f.is_symlink():
-                zf.write(f, f.relative_to(dir_path.parent))
+
+    # Security: create file securely preventing TOCTOU leaks
     if os.name == "posix":
-        zip_path.chmod(0o600)
+        fd = os.open(zip_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            with zipfile.ZipFile(f, "w", zipfile.ZIP_DEFLATED) as zf:
+                for target_f in dir_path.rglob("*"):
+                    if target_f.is_file() and not target_f.is_symlink():
+                        zf.write(target_f, target_f.relative_to(dir_path.parent))
+    else:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for target_f in dir_path.rglob("*"):
+                if target_f.is_file() and not target_f.is_symlink():
+                    zf.write(target_f, target_f.relative_to(dir_path.parent))
+
     return zip_path
 
 
