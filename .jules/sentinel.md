@@ -1,4 +1,0 @@
-## 2025-02-23 - Prevent TOCTOU file overwrite in ZipFile backups
-**Vulnerability:** The Windows path of the backup creation logic used `zipfile.ZipFile(zip_path, "w")`. Because "w" follows symlinks and will overwrite any existing file without checking, this could allow an attacker to overwrite arbitrary files (if they can place a symlink at the backup path) or silently corrupt existing backups.
-**Learning:** `zipfile.ZipFile` in Python 3 supports the `"x"` (exclusive creation) mode, which maps to `os.open` with `O_CREAT | O_EXCL` under the hood. Using `"w"` for new archives is a common anti-pattern that creates race conditions.
-**Prevention:** Always use `"x"` instead of `"w"` when creating new archive files that are not expected to exist yet, especially when writing to predictable paths.
