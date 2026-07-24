@@ -564,12 +564,12 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     if os.name == "posix":
         fd = os.open(zip_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "wb") as f:
-            with zipfile.ZipFile(f, "w", zipfile.ZIP_DEFLATED) as zf:
+            with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
                 for target_f in dir_path.rglob("*"):
                     if target_f.is_file() and not target_f.is_symlink():
                         zf.write(target_f, target_f.relative_to(dir_path.parent))
     else:
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        with zipfile.ZipFile(zip_path, "x", zipfile.ZIP_DEFLATED) as zf:
             for target_f in dir_path.rglob("*"):
                 if target_f.is_file() and not target_f.is_symlink():
                     zf.write(target_f, target_f.relative_to(dir_path.parent))
