@@ -327,6 +327,8 @@ def load_labels() -> dict:
 
 
 def save_labels(labels: dict) -> None:
+    if LABELS_FILE.is_symlink():
+        raise OSError(f"Refusing to overwrite a symlinked labels file: {LABELS_FILE}")
     LABELS_FILE.write_text(json.dumps(labels, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -347,6 +349,8 @@ def load_link_registry() -> dict:
 
 
 def save_link_registry(registry: dict) -> None:
+    if LINKS_FILE.is_symlink():
+        raise OSError(f"Refusing to overwrite a symlinked links file: {LINKS_FILE}")
     LINKS_FILE.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -2164,6 +2168,10 @@ class SessionLinkerApp(ctk.CTk):
 
         def save_and_close(_event=None):
             new_label = entry.get().strip()
+            if len(new_label) > 100:
+                status.configure(text="O nome da conta é muito longo (máx. 100 caracteres).")
+                entry.focus_set()
+                return
             if new_label:
                 self.labels[account_id] = new_label
                 save_labels(self.labels)
