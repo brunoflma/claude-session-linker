@@ -3,4 +3,4 @@
 # Manual venv: python -m venv .app\venv && .app\venv\Scripts\python -m pip install -r .app\requirements.txt
 customtkinter==6.0.0
 darkdetect==0.8.0
-pillow==12.2.0
+pillow==12.3.0
