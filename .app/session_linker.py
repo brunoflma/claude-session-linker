@@ -609,6 +609,8 @@ def find_target_workspace_dir_in_roots(folder_name: str, account_id: str):
 
 
 def ensure_index_linked(src_path: Path, dest_path: Path, source_account_id: str, origin_account_id: str) -> bool:
+    if src_path.is_symlink() or dest_path.is_symlink():
+        raise OSError("Refusing to copy a symlinked session index")
     copied = not dest_path.exists()
     if copied:
         shutil.copy2(src_path, dest_path)
@@ -658,7 +660,10 @@ def write_code_index_clone(
         transcript_path = find_transcript_path(source_cli_session_id)
         if transcript_path and transcript_path.exists():
             cloned_cli_session_id = _new_cli_session_id(transcript_path.parent)
-            shutil.copy2(transcript_path, transcript_path.with_name(f"{cloned_cli_session_id}.jsonl"))
+            cloned_transcript_path = transcript_path.with_name(f"{cloned_cli_session_id}.jsonl")
+            if transcript_path.is_symlink() or cloned_transcript_path.is_symlink():
+                raise OSError("Refusing to copy a symlinked transcript")
+            shutil.copy2(transcript_path, cloned_transcript_path)
             data["cliSessionId"] = cloned_cli_session_id
 
     copied = not dest_path.exists()
@@ -733,6 +738,8 @@ def normalize_cowork_session_copy(
     old_project = projects_dir / src_project_name
     new_project = projects_dir / dest_project_name
     if old_project.exists() and old_project != new_project:
+        if old_project.is_symlink() or new_project.is_symlink():
+            raise OSError("Refusing to move or copy a symlinked project directory")
         if new_project.exists():
             shutil.copytree(old_project, new_project, dirs_exist_ok=True)
             shutil.rmtree(old_project)
@@ -784,6 +791,8 @@ def remove_session_from_account(session: dict, mode: str):
             data_dir = Path(data_dir) if data_dir else index_path.with_suffix("")
             if data_dir.exists() and not _is_safe_cowork_data_dir(index_path, data_dir):
                 return False, "Remoção cancelada: pasta de dados Cowork inesperada."
+            if data_dir.is_symlink():
+                return False, "Remoção cancelada: pasta de dados Cowork é um symlink."
             backup_path = backup_dir_tree(index_path.parent, "cowork-workspace")
             if data_dir.is_dir():
                 shutil.rmtree(data_dir)
@@ -872,6 +881,11 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     # Scoped backup: only the destination workspace folder, not the whole
     # local-agent-mode-sessions tree -- Cowork data (outputs/, uploads/) can
     # run into hundreds of MB, unlike Code's lightweight index-only folders.
+    if session.get("data_dir") and session["data_dir"].is_symlink():
+        return False, "Falha ao copiar: diretório de origem é um symlink."
+    if dest_data_dir and dest_data_dir.is_symlink():
+        return False, "Falha ao copiar: diretório de destino é um symlink."
+
     backup_path = backup_dir_tree(target_ws, "cowork-workspace")
     try:
         if session.get("data_dir") and session["data_dir"].is_dir():
