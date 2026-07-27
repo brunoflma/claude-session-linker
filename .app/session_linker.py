@@ -784,6 +784,8 @@ def remove_session_from_account(session: dict, mode: str):
     index_path = Path(session["path"])
     if not index_path.exists():
         return False, "Essa sessão já não existe mais nesta conta."
+    if index_path.is_symlink():
+        return False, "Remoção cancelada: o índice da sessão é um symlink."
 
     try:
         if mode == "cowork":
@@ -824,6 +826,10 @@ def link_session_to_account(session: dict, target_account_id: str):
         )
 
     dest_path = target_ws / session["path"].name
+
+    if session["path"].is_symlink() or dest_path.is_symlink():
+        return False, "Falha ao vincular: arquivo de índice é um symlink."
+
     try:
         if dest_path.exists():
             backup_path = backup_sessions_dir(target_ws.parent.parent)
@@ -858,6 +864,14 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
 
     dest_path = target_ws / session["path"].name
     dest_data_dir = target_ws / session["data_dir"].name if session.get("data_dir") else None
+
+    if session["path"].is_symlink() or dest_path.is_symlink():
+        return False, "Falha ao vincular: arquivo de índice é um symlink."
+    if session.get("data_dir") and session["data_dir"].is_symlink():
+        return False, "Falha ao copiar: diretório de origem é um symlink."
+    if dest_data_dir and dest_data_dir.is_symlink():
+        return False, "Falha ao copiar: diretório de destino é um symlink."
+
     dest_already_exists = dest_path.exists() and (not dest_data_dir or dest_data_dir.exists())
     if dest_already_exists:
         try:
@@ -881,11 +895,6 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     # Scoped backup: only the destination workspace folder, not the whole
     # local-agent-mode-sessions tree -- Cowork data (outputs/, uploads/) can
     # run into hundreds of MB, unlike Code's lightweight index-only folders.
-    if session.get("data_dir") and session["data_dir"].is_symlink():
-        return False, "Falha ao copiar: diretório de origem é um symlink."
-    if dest_data_dir and dest_data_dir.is_symlink():
-        return False, "Falha ao copiar: diretório de destino é um symlink."
-
     backup_path = backup_dir_tree(target_ws, "cowork-workspace")
     try:
         if session.get("data_dir") and session["data_dir"].is_dir():
