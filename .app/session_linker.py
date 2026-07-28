@@ -459,12 +459,12 @@ def scan_sessions() -> dict:
         if not sessions_dir.exists():
             continue
         for account_dir in sessions_dir.iterdir():
-            if not account_dir.is_dir():
+            if not account_dir.is_dir() or account_dir.is_symlink():
                 continue
             account_id = account_dir.name
             account_sessions = []
             for workspace_dir in account_dir.iterdir():
-                if not workspace_dir.is_dir():
+                if not workspace_dir.is_dir() or workspace_dir.is_symlink():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
@@ -517,12 +517,12 @@ def scan_cowork_sessions() -> dict:
         if not cowork_sessions_dir.exists():
             continue
         for account_dir in cowork_sessions_dir.iterdir():
-            if not account_dir.is_dir():
+            if not account_dir.is_dir() or account_dir.is_symlink():
                 continue
             account_id = account_dir.name
             account_sessions = []
             for workspace_dir in account_dir.iterdir():
-                if not workspace_dir.is_dir():
+                if not workspace_dir.is_dir() or workspace_dir.is_symlink():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
@@ -535,7 +535,7 @@ def scan_cowork_sessions() -> dict:
                     data_dir = workspace_dir / f.stem
                     account_sessions.append({
                         "path": f,
-                        "data_dir": data_dir if data_dir.is_dir() else None,
+                        "data_dir": data_dir if data_dir.is_dir() and not data_dir.is_symlink() else None,
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": cowork_sessions_dir,
@@ -591,9 +591,9 @@ def backup_sessions_dir(sessions_dir: Path = SESSIONS_DIR) -> Path:
 
 def find_target_workspace_dir(base_dir: Path, account_id: str):
     account_dir = base_dir / account_id
-    if not account_dir.exists():
+    if not account_dir.exists() or account_dir.is_symlink():
         return None
-    workspace_dirs = [d for d in account_dir.iterdir() if d.is_dir()]
+    workspace_dirs = [d for d in account_dir.iterdir() if d.is_dir() and not d.is_symlink()]
     if not workspace_dirs:
         return None
     workspace_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
@@ -1003,7 +1003,7 @@ def read_session_progress(session: dict, mode: str) -> dict:
     """
     if mode == "cowork":
         data_dir = session.get("data_dir")
-        if not data_dir or not data_dir.is_dir():
+        if not data_dir or not data_dir.is_dir() or data_dir.is_symlink():
             return {"found": False}
         path = data_dir / "audit.jsonl"
         ts_key = "_audit_timestamp"
@@ -1046,7 +1046,7 @@ def conversation_file_available(session: dict, mode: str | None = None) -> bool:
         return True
     if mode == "cowork":
         data_dir = session.get("data_dir")
-        return bool(data_dir and data_dir.is_dir() and (data_dir / "audit.jsonl").exists())
+        return bool(data_dir and data_dir.is_dir() and not data_dir.is_symlink() and (data_dir / "audit.jsonl").exists())
     return find_transcript_path(session.get("cliSessionId", "")) is not None
 
 
