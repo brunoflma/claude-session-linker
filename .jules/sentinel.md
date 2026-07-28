@@ -1,4 +1,0 @@
-## 2025-02-14 - Fix path traversal vulnerabilities via symlinked directories in session_linker.py
-**Vulnerability:** Path traversal vulnerability due to Python's `.is_dir()` evaluating to `True` for symlinks that point to directories.
-**Learning:** Python's `.is_dir()` method implicitly follows symlinks, meaning it will return True for a symlink to a directory. Therefore, validating that a file path is a valid directory via `.is_dir()` without checking `.is_symlink()` can lead to path traversal if the directory itself is manipulated to be a symlink.
-**Prevention:** Always pair `.is_dir()` checks with an explicit `not path.is_symlink()` check when performing operations on directories, especially when iterating over unknown files or copying/moving directories using `shutil` where symlink structures could be used maliciously.
