@@ -459,12 +459,12 @@ def scan_sessions() -> dict:
         if not sessions_dir.exists():
             continue
         for account_dir in sessions_dir.iterdir():
-            if not account_dir.is_dir() or account_dir.is_symlink():
+            if account_dir.is_symlink() or not account_dir.is_dir():
                 continue
             account_id = account_dir.name
             account_sessions = []
             for workspace_dir in account_dir.iterdir():
-                if not workspace_dir.is_dir() or workspace_dir.is_symlink():
+                if workspace_dir.is_symlink() or not workspace_dir.is_dir():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
@@ -517,12 +517,12 @@ def scan_cowork_sessions() -> dict:
         if not cowork_sessions_dir.exists():
             continue
         for account_dir in cowork_sessions_dir.iterdir():
-            if not account_dir.is_dir() or account_dir.is_symlink():
+            if account_dir.is_symlink() or not account_dir.is_dir():
                 continue
             account_id = account_dir.name
             account_sessions = []
             for workspace_dir in account_dir.iterdir():
-                if not workspace_dir.is_dir() or workspace_dir.is_symlink():
+                if workspace_dir.is_symlink() or not workspace_dir.is_dir():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
                     try:
@@ -535,7 +535,7 @@ def scan_cowork_sessions() -> dict:
                     data_dir = workspace_dir / f.stem
                     account_sessions.append({
                         "path": f,
-                        "data_dir": data_dir if data_dir.is_dir() and not data_dir.is_symlink() else None,
+                        "data_dir": data_dir if not data_dir.is_symlink() and data_dir.is_dir() else None,
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": cowork_sessions_dir,
@@ -570,12 +570,12 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
         with os.fdopen(fd, "wb") as f:
             with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
                 for target_f in dir_path.rglob("*"):
-                    if target_f.is_file() and not target_f.is_symlink():
+                    if not target_f.is_symlink() and target_f.is_file():
                         zf.write(target_f, target_f.relative_to(dir_path.parent))
     else:
         with zipfile.ZipFile(zip_path, "x", zipfile.ZIP_DEFLATED) as zf:
             for target_f in dir_path.rglob("*"):
-                if target_f.is_file() and not target_f.is_symlink():
+                if not target_f.is_symlink() and target_f.is_file():
                     zf.write(target_f, target_f.relative_to(dir_path.parent))
 
     return zip_path
@@ -593,7 +593,7 @@ def find_target_workspace_dir(base_dir: Path, account_id: str):
     account_dir = base_dir / account_id
     if not account_dir.exists() or account_dir.is_symlink():
         return None
-    workspace_dirs = [d for d in account_dir.iterdir() if d.is_dir() and not d.is_symlink()]
+    workspace_dirs = [d for d in account_dir.iterdir() if not d.is_symlink() and d.is_dir()]
     if not workspace_dirs:
         return None
     workspace_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
@@ -690,11 +690,11 @@ def claude_project_dir_name(path: Path | str) -> str:
 
 def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
     replacements = {old: new for old, new in replacements.items() if old and old != new}
-    if not root.is_dir() or not replacements:
+    if root.is_symlink() or not root.is_dir() or not replacements:
         return
     text_suffixes = {".json", ".jsonl", ".md", ".txt", ".yml", ".yaml", ".toml", ".lock", ""}
     for path in root.rglob("*"):
-        if not path.is_file() or path.is_symlink() or path.suffix.lower() not in text_suffixes:
+        if path.is_symlink() or not path.is_file() or path.suffix.lower() not in text_suffixes:
             continue
         try:
             if path.stat().st_size > 25 * 1024 * 1024:  # Security: 25MB limit
@@ -727,7 +727,7 @@ def normalize_cowork_session_copy(
     dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     record_link_metadata(dest_path, source_account_id, origin_account_id)
 
-    if not src_data_dir or not dest_data_dir or not dest_data_dir.is_dir():
+    if not src_data_dir or not dest_data_dir or dest_data_dir.is_symlink() or not dest_data_dir.is_dir():
         return
 
     src_outputs = src_data_dir / "outputs"
@@ -796,7 +796,7 @@ def remove_session_from_account(session: dict, mode: str):
             if data_dir.is_symlink():
                 return False, "Remoção cancelada: pasta de dados Cowork é um symlink."
             backup_path = backup_dir_tree(index_path.parent, "cowork-workspace")
-            if data_dir.is_dir():
+            if not data_dir.is_symlink() and data_dir.is_dir():
                 shutil.rmtree(data_dir)
             index_path.unlink()
             remove_link_metadata(index_path)
@@ -897,7 +897,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     # run into hundreds of MB, unlike Code's lightweight index-only folders.
     backup_path = backup_dir_tree(target_ws, "cowork-workspace")
     try:
-        if session.get("data_dir") and session["data_dir"].is_dir():
+        if session.get("data_dir") and not session["data_dir"].is_symlink() and session["data_dir"].is_dir():
             # ignore_dangling_symlinks: session output folders can contain
             # tool install artifacts (e.g. npm's node_modules/.bin) with
             # symlinks that no longer resolve -- that shouldn't abort an
@@ -1003,7 +1003,7 @@ def read_session_progress(session: dict, mode: str) -> dict:
     """
     if mode == "cowork":
         data_dir = session.get("data_dir")
-        if not data_dir or not data_dir.is_dir() or data_dir.is_symlink():
+        if not data_dir or data_dir.is_symlink() or not data_dir.is_dir():
             return {"found": False}
         path = data_dir / "audit.jsonl"
         ts_key = "_audit_timestamp"
@@ -1046,7 +1046,7 @@ def conversation_file_available(session: dict, mode: str | None = None) -> bool:
         return True
     if mode == "cowork":
         data_dir = session.get("data_dir")
-        return bool(data_dir and data_dir.is_dir() and not data_dir.is_symlink() and (data_dir / "audit.jsonl").exists())
+        return bool(data_dir and not data_dir.is_symlink() and data_dir.is_dir() and (data_dir / "audit.jsonl").exists())
     return find_transcript_path(session.get("cliSessionId", "")) is not None
 
 
