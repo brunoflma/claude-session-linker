@@ -1,4 +1,0 @@
-## 2024-05-24 - [Pathlib implicit symlink following vulnerability]
-**Vulnerability:** Use of `pathlib`'s `.is_dir()` and `.is_file()` methods before `.is_symlink()`.
-**Learning:** In Python's `pathlib`, `.is_dir()` and `.is_file()` implicitly follow symlinks, leading to an extra `stat` on the symlink target. If evaluated before an `is_symlink()` check, a malicious symlink can be followed, potentially leading to path traversal or arbitrary file manipulation vulnerabilities (especially when iterating directory structures or executing `shutil` operations).
-**Prevention:** Always evaluate `.is_symlink()` FIRST to prevent implicit following. Use `if not path.is_symlink() and path.is_dir():` or `if path.is_symlink() or not path.is_dir():` depending on the logic.
