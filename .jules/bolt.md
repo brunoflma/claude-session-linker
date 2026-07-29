@@ -1,3 +1,0 @@
-## 2024-07-29 - [O(N^2) File System Traversal in Session Linker]
-**Learning:** Found a performance bottleneck where a helper function doing recursive file globbing (`find_transcript_path`) was being called repeatedly inside nested loops (e.g., when determining session duplicates or checking conversation availability). For environments with many Claude code sessions, this scaled O(N^2) with the number of sessions, causing enormous disk I/O and slowing the application to a crawl.
-**Action:** When a helper function does a full directory search, check if it's called inside a loop over the same data. Consider adding a small TTL cache for directory listing mapping, thereby shifting the time complexity to O(N) by caching the index of `cliSessionId`s mapped to their paths.
