@@ -962,6 +962,9 @@ def fmt_ts(ms: int) -> str:
 
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
 
+_TRANSCRIPT_CACHE = None
+_TRANSCRIPT_CACHE_TIME = 0.0
+
 
 def find_transcript_path(cli_session_id: str):
     """Locate the real `.jsonl` transcript for a cliSessionId, regardless of
@@ -974,10 +977,15 @@ def find_transcript_path(cli_session_id: str):
     # path traversal or glob injection if a local_*.json was modified maliciously.
     if not re.match(r"^[A-Za-z0-9\-]+$", cli_session_id):
         return None
-    # Bolt Optimization: Use next() instead of list() to short-circuit the
-    # recursive directory traversal as soon as the first match is found,
-    # avoiding unnecessary disk I/O on large project directories.
-    return next(CLAUDE_PROJECTS_DIR.rglob(f"{cli_session_id}.jsonl"), None)
+    # Bolt Optimization: Cache the glob results for a short period to prevent
+    # O(N) disk I/O scans when querying the status of many sessions in a loop.
+    global _TRANSCRIPT_CACHE, _TRANSCRIPT_CACHE_TIME
+    now = time.time()
+    if _TRANSCRIPT_CACHE is None or now - _TRANSCRIPT_CACHE_TIME > 2.0:
+        _TRANSCRIPT_CACHE = {p.stem: p for p in CLAUDE_PROJECTS_DIR.rglob("*.jsonl")}
+        _TRANSCRIPT_CACHE_TIME = now
+
+    return _TRANSCRIPT_CACHE.get(cli_session_id)
 
 
 def parse_iso_ts(ts):
