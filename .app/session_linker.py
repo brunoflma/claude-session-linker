@@ -318,7 +318,7 @@ CONFIG_JSON = CLAUDE_DIR / "config.json"
 
 
 def load_labels() -> dict:
-    if LABELS_FILE.exists():
+    if not LABELS_FILE.is_symlink() and LABELS_FILE.is_file():
         try:
             return json.loads(LABELS_FILE.read_text(encoding="utf-8"))
         except Exception:
@@ -340,7 +340,7 @@ def _link_key(path: Path) -> str:
 
 
 def load_link_registry() -> dict:
-    if LINKS_FILE.exists():
+    if not LINKS_FILE.is_symlink() and LINKS_FILE.is_file():
         try:
             return json.loads(LINKS_FILE.read_text(encoding="utf-8"))
         except Exception:
@@ -383,7 +383,7 @@ def source_origin_account(session: dict) -> str:
 def get_active_account_uuid():
     for claude_dir in CLAUDE_DIRS:
         config_json = claude_dir / "config.json"
-        if not config_json.exists():
+        if config_json.is_symlink() or not config_json.is_file():
             continue
         try:
             data = json.loads(config_json.read_text(encoding="utf-8"))
@@ -467,6 +467,8 @@ def scan_sessions() -> dict:
                 if workspace_dir.is_symlink() or not workspace_dir.is_dir():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
+                    if f.is_symlink() or not f.is_file():
+                        continue
                     try:
                         if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
@@ -525,6 +527,8 @@ def scan_cowork_sessions() -> dict:
                 if workspace_dir.is_symlink() or not workspace_dir.is_dir():
                     continue
                 for f in workspace_dir.glob("local_*.json"):
+                    if f.is_symlink() or not f.is_file():
+                        continue
                     try:
                         if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
@@ -1019,7 +1023,7 @@ def read_session_progress(session: dict, mode: str) -> dict:
         path = find_transcript_path(session["cliSessionId"])
         ts_key = "timestamp"
 
-    if path is None or not path.exists():
+    if path is None or path.is_symlink() or not path.is_file():
         return {"found": False}
     message_count = 0
     last_ts_raw = None
