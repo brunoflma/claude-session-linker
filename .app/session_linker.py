@@ -573,14 +573,12 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
         fd = os.open(zip_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "wb") as f:
             with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
-                for target_f in dir_path.rglob("*"):
-                    if not target_f.is_symlink() and target_f.is_file():
-                        zf.write(target_f, target_f.relative_to(dir_path.parent))
+                for target_f in _safe_walk_files(dir_path):
+                    zf.write(target_f, target_f.relative_to(dir_path.parent))
     else:
         with zipfile.ZipFile(zip_path, "x", zipfile.ZIP_DEFLATED) as zf:
-            for target_f in dir_path.rglob("*"):
-                if not target_f.is_symlink() and target_f.is_file():
-                    zf.write(target_f, target_f.relative_to(dir_path.parent))
+            for target_f in _safe_walk_files(dir_path):
+                zf.write(target_f, target_f.relative_to(dir_path.parent))
 
     return zip_path
 
@@ -697,8 +695,8 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
     if root.is_symlink() or not root.is_dir() or not replacements:
         return
     text_suffixes = {".json", ".jsonl", ".md", ".txt", ".yml", ".yaml", ".toml", ".lock", ""}
-    for path in root.rglob("*"):
-        if path.is_symlink() or not path.is_file() or path.suffix.lower() not in text_suffixes:
+    for path in _safe_walk_files(root):
+        if path.suffix.lower() not in text_suffixes:
             continue
         try:
             if path.stat().st_size > 25 * 1024 * 1024:  # Security: 25MB limit
@@ -775,6 +773,16 @@ def _sessions_dir_for_session(session: dict, fallback_folder_name: str) -> Path:
         return path.parents[2]
     except IndexError:
         return path.parent.parent.parent / fallback_folder_name
+
+
+def _safe_walk_files(path: Path):
+    if path.is_symlink():
+        return
+    if path.is_dir():
+        for child in path.iterdir():
+            yield from _safe_walk_files(child)
+    elif path.is_file():
+        yield path
 
 
 def _is_safe_cowork_data_dir(index_path: Path, data_dir: Path) -> bool:
@@ -986,7 +994,10 @@ def find_transcript_path(cli_session_id: str):
     global _TRANSCRIPT_CACHE, _TRANSCRIPT_CACHE_TIME
     now = time.time()
     if _TRANSCRIPT_CACHE is None or now - _TRANSCRIPT_CACHE_TIME > 2.0:
-        _TRANSCRIPT_CACHE = {p.stem: p for p in CLAUDE_PROJECTS_DIR.rglob("*.jsonl")}
+        _TRANSCRIPT_CACHE = {
+            p.stem: p for p in _safe_walk_files(CLAUDE_PROJECTS_DIR)
+            if p.suffix.lower() == ".jsonl"
+        }
         _TRANSCRIPT_CACHE_TIME = now
 
     return _TRANSCRIPT_CACHE.get(cli_session_id)
