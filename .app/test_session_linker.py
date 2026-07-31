@@ -1025,6 +1025,21 @@ class MacDiscoveryTests(unittest.TestCase):
         finally:
             shutil.rmtree(base, ignore_errors=True)
 
+    def test_safe_walk_files_ignores_symlinked_dirs(self):
+        base = Path(tempfile.mkdtemp())
+        try:
+            (base / "real_dir").mkdir()
+            (base / "real_dir" / "file.txt").write_text("test")
+            (base / "symlinked_dir").symlink_to(base / "real_dir", target_is_directory=True)
+            files = list(session_linker._safe_walk_files(base))
+            self.assertEqual(len(files), 1)
+            self.assertEqual(files[0].name, "file.txt")
+            self.assertIn("real_dir", files[0].parts)
+        except OSError as exc:
+            self.skipTest(f"symlinks unavailable: {exc}")
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+
     def test_windows_branch_still_works_on_any_host(self):
         appdata = Path(tempfile.mkdtemp())
         try:
