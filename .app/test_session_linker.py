@@ -1063,5 +1063,43 @@ class MacDiscoveryTests(unittest.TestCase):
             shutil.rmtree(base, ignore_errors=True)
 
 
+
+    def test_secure_write_text_permissions(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "secure.txt"
+            session_linker._secure_write_text(file_path, "secret data")
+
+            self.assertTrue(file_path.exists())
+            self.assertEqual(file_path.read_text(encoding="utf-8"), "secret data")
+
+            if os.name == "posix":
+                st = os.stat(file_path)
+                # Check that permissions are 0o600
+                self.assertEqual(st.st_mode & 0o777, 0o600)
+
+    def test_backup_dir_tree_permissions(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            sessions_dir = Path(tmp_dir) / "sessions"
+            sessions_dir.mkdir()
+            (sessions_dir / "file.txt").write_text("data")
+
+            # Patch BACKUPS_DIR so we don't write to the real one during tests
+            original_backups_dir = session_linker.BACKUPS_DIR
+            try:
+                test_backups_dir = Path(tmp_dir) / "backups"
+                test_backups_dir.mkdir()
+                session_linker.BACKUPS_DIR = test_backups_dir
+
+                zip_path = session_linker.backup_dir_tree(sessions_dir, "test-label")
+
+                self.assertTrue(zip_path.exists())
+                if os.name == "posix":
+                    st = os.stat(zip_path)
+                    # Check that permissions are 0o600
+                    self.assertEqual(st.st_mode & 0o777, 0o600)
+            finally:
+                session_linker.BACKUPS_DIR = original_backups_dir
+
+
 if __name__ == "__main__":
     unittest.main()
