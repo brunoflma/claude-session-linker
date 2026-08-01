@@ -326,10 +326,21 @@ def load_labels() -> dict:
     return {}
 
 
+
+def _secure_write_text(path: Path, content: str) -> None:
+    if os.name == "posix":
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+    else:
+        path.write_text(content, encoding="utf-8")
+
+
 def save_labels(labels: dict) -> None:
     if LABELS_FILE.is_symlink():
         raise OSError(f"Refusing to overwrite a symlinked labels file: {LABELS_FILE}")
-    LABELS_FILE.write_text(json.dumps(labels, indent=2, ensure_ascii=False), encoding="utf-8")
+    _secure_write_text(LABELS_FILE, json.dumps(labels, indent=2, ensure_ascii=False))
 
 
 def _link_key(path: Path) -> str:
@@ -351,7 +362,7 @@ def load_link_registry() -> dict:
 def save_link_registry(registry: dict) -> None:
     if LINKS_FILE.is_symlink():
         raise OSError(f"Refusing to overwrite a symlinked links file: {LINKS_FILE}")
-    LINKS_FILE.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
+    _secure_write_text(LINKS_FILE, json.dumps(registry, indent=2, ensure_ascii=False))
 
 
 def record_link_metadata(
@@ -669,7 +680,7 @@ def write_code_index_clone(
             data["cliSessionId"] = cloned_cli_session_id
 
     copied = not dest_path.exists()
-    dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    _secure_write_text(dest_path, json.dumps(data, indent=2, ensure_ascii=False))
     record_link_metadata(dest_path, source_account_id, origin_account_id, source_cli_session_id)
     return copied
 
@@ -708,7 +719,7 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         for old, new in replacements.items():
             updated = updated.replace(old, new)
         if updated != text:
-            path.write_text(updated, encoding="utf-8")
+            _secure_write_text(path, updated)
 
 
 def normalize_cowork_session_copy(
@@ -726,7 +737,7 @@ def normalize_cowork_session_copy(
         data["cwd"] = str(dest_data_dir / "outputs")
     for key in ("error", "errorAt", "errorCategory", "errorVersion"):
         data.pop(key, None)
-    dest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    _secure_write_text(dest_path, json.dumps(data, indent=2, ensure_ascii=False))
     record_link_metadata(dest_path, source_account_id, origin_account_id)
 
     if not src_data_dir or not dest_data_dir or dest_data_dir.is_symlink() or not dest_data_dir.is_dir():
