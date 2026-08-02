@@ -105,6 +105,8 @@ def _log(message):
     try:
         if os.name == "posix":
             flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= getattr(os, "O_NOFOLLOW")
             fd = os.open(ERR_LOG, flags, 0o600)
             with os.fdopen(fd, "a", encoding="utf-8") as f:
                 f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
@@ -330,6 +332,8 @@ def load_labels() -> dict:
 def _secure_write_text(path: Path, content: str) -> None:
     if os.name == "posix":
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= getattr(os, "O_NOFOLLOW")
         fd = os.open(path, flags, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
@@ -581,7 +585,10 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
 
     # Security: create file securely preventing TOCTOU leaks
     if os.name == "posix":
-        fd = os.open(zip_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= getattr(os, "O_NOFOLLOW")
+        fd = os.open(zip_path, flags, 0o600)
         with os.fdopen(fd, "wb") as f:
             with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
                 for target_f in _safe_walk_files(dir_path):
