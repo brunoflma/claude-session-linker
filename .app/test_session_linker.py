@@ -976,6 +976,8 @@ class BackupSecurityTests(unittest.TestCase):
                     out = session_linker.backup_dir_tree(src, "testlabel")
 
                     expected_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                    if hasattr(os, "O_NOFOLLOW"):
+                        expected_flags |= getattr(os, "O_NOFOLLOW")
                     mock_open.assert_any_call(out, expected_flags, 0o600)
 
             if os.path.exists(real_path):
