@@ -329,7 +329,7 @@ def load_labels() -> dict:
 
 def _secure_write_text(path: Path, content: str) -> None:
     if os.name == "posix":
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
         fd = os.open(path, flags, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
