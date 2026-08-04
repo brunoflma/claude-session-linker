@@ -332,6 +332,8 @@ def load_labels() -> dict:
 
 
 def _secure_write_text(path: Path, content: str) -> None:
+    if ".." in str(path):
+        raise Exception("Invalid file path")
     if os.name == "posix":
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
         if hasattr(os, "O_NOFOLLOW"):
