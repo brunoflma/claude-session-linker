@@ -322,6 +322,8 @@ CONFIG_JSON = CLAUDE_DIR / "config.json"
 def load_labels() -> dict:
     if not LABELS_FILE.is_symlink() and LABELS_FILE.is_file():
         try:
+            if LABELS_FILE.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                return {}
             return json.loads(LABELS_FILE.read_text(encoding="utf-8"))
         except Exception:
             return {}
@@ -357,6 +359,8 @@ def _link_key(path: Path) -> str:
 def load_link_registry() -> dict:
     if not LINKS_FILE.is_symlink() and LINKS_FILE.is_file():
         try:
+            if LINKS_FILE.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                return {}
             return json.loads(LINKS_FILE.read_text(encoding="utf-8"))
         except Exception:
             return {}
@@ -401,6 +405,8 @@ def get_active_account_uuid():
         if config_json.is_symlink() or not config_json.is_file():
             continue
         try:
+            if config_json.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                continue
             data = json.loads(config_json.read_text(encoding="utf-8"))
             account_uuid = data.get("lastKnownAccountUuid")
             if account_uuid:
