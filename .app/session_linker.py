@@ -805,8 +805,19 @@ def _safe_walk_files(path: Path):
     if path.is_symlink():
         return
     if path.is_dir():
-        for child in path.iterdir():
-            yield from _safe_walk_files(child)
+        # Bolt Optimization: Use os.scandir instead of Path.iterdir() to leverage
+        # cached os.DirEntry stat information and avoid redundant syscalls
+        try:
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir():
+                        yield from _safe_walk_files(Path(entry.path))
+                    elif entry.is_file():
+                        yield Path(entry.path)
+        except OSError:
+            pass
     elif path.is_file():
         yield path
 
