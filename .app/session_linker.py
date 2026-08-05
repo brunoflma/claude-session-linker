@@ -1568,6 +1568,7 @@ class SessionLinkerApp(ctk.CTk):
             meta = ctk.CTkLabel(
                 row, text=subtitle, font=self._f_x,
                 text_color=GREEN if is_active else TXT3, anchor="w",
+                cursor="hand2",
             )
             meta.grid(row=1, column=0, sticky="ew", padx=(10, 0), pady=(0, 8))
             meta.bind("<Button-1>", lambda _e, a=account_id: self._select_account(a))
