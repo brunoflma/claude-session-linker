@@ -181,7 +181,10 @@ def _load_app_version() -> str:
     # the setup window badge, the setup.ps1 message) reads from that one file
     # so a release only ever changes one number.
     try:
-        return (Path(__file__).resolve().parent / "VERSION").read_text(encoding="utf-8").strip()
+        version_file = Path(__file__).resolve().parent / "VERSION"
+        if version_file.is_symlink() or version_file.stat().st_size > 1024 * 1024:
+            return "0.0.0"
+        return version_file.read_text(encoding="utf-8").strip()
     except OSError:
         return "0.0.0"
 
@@ -805,8 +808,18 @@ def _safe_walk_files(path: Path):
     if path.is_symlink():
         return
     if path.is_dir():
-        for child in path.iterdir():
-            yield from _safe_walk_files(child)
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    child = Path(entry.path)
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir(follow_symlinks=False):
+                        yield from _safe_walk_files(child)
+                    elif entry.is_file(follow_symlinks=False):
+                        yield child
+        except OSError:
+            pass
     elif path.is_file():
         yield path
 

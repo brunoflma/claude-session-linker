@@ -24,7 +24,10 @@ ROOT_DIR = APP_DIR.parent
 def _load_app_version() -> str:
     # Single source of truth shared with session_linker.py and setup.ps1.
     try:
-        return (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
+        version_file = APP_DIR / "VERSION"
+        if version_file.is_symlink() or version_file.stat().st_size > 1024 * 1024:
+            return "0.0.0"
+        return version_file.read_text(encoding="utf-8").strip()
     except OSError:
         return "0.0.0"
 
@@ -410,6 +413,8 @@ class SetupApp(tk.Tk):
 
         msg = ""
         try:
+            if RESULT_FILE.is_symlink() or RESULT_FILE.stat().st_size > 5 * 1024 * 1024:
+                raise OSError("Invalid result file")
             raw = RESULT_FILE.read_text(encoding="utf-8-sig").lstrip("\ufeff")
             if raw.startswith("STATUS="):
                 first, _, rest = raw.partition("\n")
