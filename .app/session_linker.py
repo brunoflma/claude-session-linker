@@ -772,7 +772,7 @@ def normalize_cowork_session_copy(
         if old_project.is_symlink() or new_project.is_symlink():
             raise OSError("Refusing to move or copy a symlinked project directory")
         if new_project.exists():
-            shutil.copytree(old_project, new_project, dirs_exist_ok=True)
+            shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
             shutil.rmtree(old_project)
         else:
             old_project.rename(new_project)
