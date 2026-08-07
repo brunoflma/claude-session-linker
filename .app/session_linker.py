@@ -182,8 +182,6 @@ def _load_app_version() -> str:
     # so a release only ever changes one number.
     try:
         version_file = Path(__file__).resolve().parent / "VERSION"
-        if version_file.is_symlink() or version_file.stat().st_size > 1024 * 1024:
-            return "0.0.0"
         return version_file.read_text(encoding="utf-8").strip()
     except OSError:
         return "0.0.0"
