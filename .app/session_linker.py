@@ -1073,6 +1073,14 @@ def read_session_progress(session: dict, mode: str) -> dict:
 
     if path is None or path.is_symlink() or not path.is_file():
         return {"found": False}
+
+    # Security: limit processing of unbounded transcript lines to prevent DoS (OOM/CPU exhaustion)
+    try:
+        if path.stat().st_size > 50 * 1024 * 1024:  # 50MB limit
+            return {"found": False}
+    except OSError:
+        return {"found": False}
+
     message_count = 0
     last_ts_raw = None
     try:

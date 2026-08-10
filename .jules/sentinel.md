@@ -1,0 +1,4 @@
+## 2024-05-24 - Fix Unbounded File Reading (DoS)
+**Vulnerability:** The application was vulnerable to local Denial of Service (DoS) when reading `.jsonl` transcript files. A malicious actor could provide an exceptionally large transcript file, causing the Python application to exhaust memory or block the main Tkinter thread indefinitely, leading to a freeze/crash.
+**Learning:** Line-by-line file reading with `open("r")` is memory efficient for holding the lines in memory, but it doesn't protect against CPU/thread exhaustion (e.g., blocking UI) if the file contains tens of millions of lines. Unbounded iteration is unsafe without a length or size constraint.
+**Prevention:** Always enforce a file size limit check (e.g., `path.stat().st_size > 50 * 1024 * 1024` for 50MB) before starting to read potentially unbounded logs, configurations, or transcript files.
