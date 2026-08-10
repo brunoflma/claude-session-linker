@@ -1,4 +1,0 @@
-## 2026-08-10 - [Medium] Fix DoS via unbound file size in transcript parser
-**Vulnerability:** The `read_session_progress` function reads session `.jsonl` files line by line using `.open("r")` but lacked an upper size limit, opening up a DoS vector via memory exhaustion (OOM) if an attacker places an extremely large (e.g. multi-gigabyte) log file or one with massive lines without newlines.
-**Learning:** Even functions iterating over a file line by line must check the file size upfront when the file structure is externally controllable and can contain arbitrarily long sequences without a line separator.
-**Prevention:** Always enforce a file size check (e.g. `path.stat().st_size > limit`) on potentially unbounded configuration, log, or transcript files before parsing, especially when dealing with JSON.
