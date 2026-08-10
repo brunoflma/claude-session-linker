@@ -1076,6 +1076,8 @@ def read_session_progress(session: dict, mode: str) -> dict:
     message_count = 0
     last_ts_raw = None
     try:
+        if path.stat().st_size > 50 * 1024 * 1024:  # Security: 50MB limit to prevent DoS (OOM)
+            return {"found": False}
         with path.open("r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
