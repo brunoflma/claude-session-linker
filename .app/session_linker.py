@@ -482,19 +482,23 @@ def scan_sessions() -> dict:
         sessions_dir = claude_dir / "claude-code-sessions"
         if not sessions_dir.exists():
             continue
-        for account_dir in sessions_dir.iterdir():
-            if account_dir.is_symlink() or not account_dir.is_dir():
+        for account_entry in os.scandir(sessions_dir):
+            if account_entry.is_symlink() or not account_entry.is_dir(follow_symlinks=False):
                 continue
-            account_id = account_dir.name
+            account_id = account_entry.name
             account_sessions = []
-            for workspace_dir in account_dir.iterdir():
-                if workspace_dir.is_symlink() or not workspace_dir.is_dir():
+            for workspace_entry in os.scandir(account_entry.path):
+                if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
-                for f in workspace_dir.glob("local_*.json"):
-                    if f.is_symlink() or not f.is_file():
+                workspace_dir = Path(workspace_entry.path)
+                for file_entry in os.scandir(workspace_entry.path):
+                    if not (file_entry.name.startswith("local_") and file_entry.name.endswith(".json")):
                         continue
+                    if file_entry.is_symlink() or not file_entry.is_file(follow_symlinks=False):
+                        continue
+                    f = Path(file_entry.path)
                     try:
-                        if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                        if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
@@ -542,19 +546,23 @@ def scan_cowork_sessions() -> dict:
         cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
         if not cowork_sessions_dir.exists():
             continue
-        for account_dir in cowork_sessions_dir.iterdir():
-            if account_dir.is_symlink() or not account_dir.is_dir():
+        for account_entry in os.scandir(cowork_sessions_dir):
+            if account_entry.is_symlink() or not account_entry.is_dir(follow_symlinks=False):
                 continue
-            account_id = account_dir.name
+            account_id = account_entry.name
             account_sessions = []
-            for workspace_dir in account_dir.iterdir():
-                if workspace_dir.is_symlink() or not workspace_dir.is_dir():
+            for workspace_entry in os.scandir(account_entry.path):
+                if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
-                for f in workspace_dir.glob("local_*.json"):
-                    if f.is_symlink() or not f.is_file():
+                workspace_dir = Path(workspace_entry.path)
+                for file_entry in os.scandir(workspace_entry.path):
+                    if not (file_entry.name.startswith("local_") and file_entry.name.endswith(".json")):
                         continue
+                    if file_entry.is_symlink() or not file_entry.is_file(follow_symlinks=False):
+                        continue
+                    f = Path(file_entry.path)
                     try:
-                        if f.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                        if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
                         data = json.loads(f.read_text(encoding="utf-8"))
                     except Exception:
@@ -622,7 +630,10 @@ def find_target_workspace_dir(base_dir: Path, account_id: str):
     account_dir = base_dir / account_id
     if not account_dir.exists() or account_dir.is_symlink():
         return None
-    workspace_dirs = [d for d in account_dir.iterdir() if not d.is_symlink() and d.is_dir()]
+    workspace_dirs = [
+        Path(d.path) for d in os.scandir(account_dir)
+        if not d.is_symlink() and d.is_dir(follow_symlinks=False)
+    ]
     if not workspace_dirs:
         return None
     workspace_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
