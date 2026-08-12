@@ -1689,10 +1689,20 @@ class SessionLinkerApp(ctk.CTk):
             ).grid(row=0, column=1, sticky="e")
 
         meta = f'{session["cwd"]}   ·   {fmt_ts(session["lastActivityAt"])}   ·   {session["cliSessionId"][:8]}'
-        ctk.CTkLabel(
+        meta_label = ctk.CTkLabel(
             inner, text=meta, font=self._f_mono, text_color=INK3,
-            anchor="w", wraplength=760, justify="left",
-        ).grid(row=1, column=0, sticky="ew", pady=(4, 10))
+            anchor="w", wraplength=760, justify="left", cursor="hand2"
+        )
+        meta_label.grid(row=1, column=0, sticky="ew", pady=(4, 10))
+
+        def copy_cwd(_e=None, cwd=session.get("cwd", "")):
+            if cwd:
+                self.clipboard_clear()
+                self.clipboard_append(cwd)
+                self._toast("Caminho copiado!")
+
+        meta_label.bind("<Button-1>", copy_cwd)
+        self._add_tooltip(meta_label, "Copiar caminho do projeto")
 
         row_i = 2
         badges = self._link_badges(account_id, session)
