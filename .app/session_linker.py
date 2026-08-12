@@ -352,11 +352,19 @@ def save_labels(labels: dict) -> None:
     _secure_write_text(LABELS_FILE, json.dumps(labels, indent=2, ensure_ascii=False))
 
 
+_LINK_KEY_CACHE = {}
+
 def _link_key(path: Path) -> str:
-    try:
-        return str(path.resolve())
-    except Exception:
-        return str(path)
+    # Bolt Optimization: Prevent O(N) disk I/O bottlenecks when calling path.resolve()
+    # repeatedly on session files during scanning by globally caching the full resolution
+    # of the path. This preserves exact symlink resolution behavior while avoiding disk hits.
+    key = str(path)
+    if key not in _LINK_KEY_CACHE:
+        try:
+            _LINK_KEY_CACHE[key] = str(path.resolve())
+        except Exception:
+            _LINK_KEY_CACHE[key] = key
+    return _LINK_KEY_CACHE[key]
 
 
 def load_link_registry() -> dict:
