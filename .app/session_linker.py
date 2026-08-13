@@ -345,6 +345,22 @@ def _secure_write_text(path: Path, content: str) -> None:
     else:
         path.write_text(content, encoding="utf-8")
 
+def _secure_copy(src: Path, dest: Path) -> None:
+    if ".." in str(dest):
+        raise Exception("Invalid file path")
+    if src.is_symlink() or dest.is_symlink():
+        raise OSError("Refusing to copy involving a symlink")
+    if os.name == "posix":
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= getattr(os, "O_NOFOLLOW")
+        fd = os.open(dest, flags, 0o600)
+        with os.fdopen(fd, "wb") as f_dst, src.open("rb") as f_src:
+            shutil.copyfileobj(f_src, f_dst)
+        shutil.copystat(src, dest, follow_symlinks=False)
+    else:
+        shutil.copy2(src, dest, follow_symlinks=False)
+
 
 def save_labels(labels: dict) -> None:
     if LABELS_FILE.is_symlink():
@@ -661,7 +677,7 @@ def ensure_index_linked(src_path: Path, dest_path: Path, source_account_id: str,
         raise OSError("Refusing to copy a symlinked session index")
     copied = not dest_path.exists()
     if copied:
-        shutil.copy2(src_path, dest_path)
+        _secure_copy(src_path, dest_path)
     record_link_metadata(dest_path, source_account_id, origin_account_id)
     return copied
 
@@ -711,7 +727,7 @@ def write_code_index_clone(
             cloned_transcript_path = transcript_path.with_name(f"{cloned_cli_session_id}.jsonl")
             if transcript_path.is_symlink() or cloned_transcript_path.is_symlink():
                 raise OSError("Refusing to copy a symlinked transcript")
-            shutil.copy2(transcript_path, cloned_transcript_path)
+            _secure_copy(transcript_path, cloned_transcript_path)
             data["cliSessionId"] = cloned_cli_session_id
 
     copied = not dest_path.exists()
@@ -723,7 +739,7 @@ def write_code_index_clone(
 def copy_index_with_link_metadata(src_path: Path, dest_path: Path, source_account_id: str, origin_account_id: str | None = None) -> None:
     if src_path.is_symlink() or dest_path.is_symlink():
         raise OSError("Refusing to copy a symlinked session index")
-    shutil.copy2(src_path, dest_path)
+    _secure_copy(src_path, dest_path)
     record_link_metadata(dest_path, source_account_id, origin_account_id or source_account_id)
 
 
