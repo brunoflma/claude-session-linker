@@ -1,4 +1,0 @@
-## 2025-03-09 - Prevent Symlink Hijacking in Directory Creation
-**Vulnerability:** The `_secure_mkdir` function created directories using `path.mkdir(exist_ok=True)` and subsequently called `path.chmod(0o700)`. If an attacker placed a symlink at the target path before execution, `path.chmod()` would follow the symlink, potentially changing the permissions of arbitrary critical directories (e.g., `/etc` or other users' folders).
-**Learning:** `path.chmod()` follows symlinks on many Python versions/systems. When creating sensitive directories where `exist_ok=True` is used, you must explicitly verify that the existing path is a real directory and NOT a symlink before applying permission changes.
-**Prevention:** Always check `path.is_symlink()` before modifying permissions of existing files or directories.
