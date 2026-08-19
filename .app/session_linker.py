@@ -78,6 +78,8 @@ ROOT_DIR = APP_DIR.parent
 ICON_PATH = APP_DIR / "icon.ico"
 ICON_PNG = APP_DIR / "icon.png"
 def _secure_mkdir(path: Path, parents: bool = False) -> None:
+    if path.exists() and (path.is_symlink() or not path.is_dir()):
+        raise OSError(f"Refusing to use non-directory or symlinked path: {path}")
     path.mkdir(parents=parents, exist_ok=True, mode=0o700)
     if os.name == "posix":
         path.chmod(0o700)
