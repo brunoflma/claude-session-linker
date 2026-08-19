@@ -1123,6 +1123,13 @@ def read_session_progress(session: dict, mode: str) -> dict:
             return {"found": False}
         with path.open("r", encoding="utf-8") as f:
             for line in f:
+                # Bolt Optimization: Fast-path substring check to prevent O(N) CPU bottleneck
+                # from full JSON parsing on irrelevant lines in large transcripts.
+                has_type = '"user"' in line or '"assistant"' in line
+                has_ts = ts_key in line
+                if not has_type and not has_ts:
+                    continue
+
                 line = line.strip()
                 if not line:
                     continue
