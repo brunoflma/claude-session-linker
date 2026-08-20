@@ -82,7 +82,17 @@ def _secure_mkdir(path: Path, parents: bool = False) -> None:
         raise OSError(f"Refusing to use non-directory or symlinked path: {path}")
     path.mkdir(parents=parents, exist_ok=True, mode=0o700)
     if os.name == "posix":
-        path.chmod(0o700)
+        try:
+            # Secure against TOCTOU symlink hijacking: open the directory ensuring it is not a symlink,
+            # then chmod via the file descriptor.
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(path, flags)
+            try:
+                os.chmod(fd, 0o700)
+            finally:
+                os.close(fd)
+        except Exception as e:
+            raise OSError(f"Failed to securely chmod directory {path}: {e}")
 
 LOG_DIR = APP_DIR / "logs"
 _secure_mkdir(LOG_DIR, parents=True)
