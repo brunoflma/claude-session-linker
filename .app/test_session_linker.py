@@ -651,12 +651,12 @@ class SessionLinkerLogicTests(unittest.TestCase):
             links_file = Path(tmp) / "session_links.json"
             original_backups_dir = session_linker.BACKUPS_DIR
             original_links_file = session_linker.LINKS_FILE
-            original_rmtree = session_linker.shutil.rmtree
+            original_rmtree = session_linker._secure_rmtree
             session_linker.BACKUPS_DIR = Path(tmp) / "backups"
             session_linker.BACKUPS_DIR.mkdir()
             session_linker.LINKS_FILE = links_file
             session_linker.record_link_metadata(index_path, "account-b", "account-a")
-            session_linker.shutil.rmtree = lambda _path: (_ for _ in ()).throw(OSError("locked"))
+            session_linker._secure_rmtree = lambda _path: (_ for _ in ()).throw(OSError("locked"))
             try:
                 ok, message = session_linker.remove_session_from_account(
                     {
@@ -673,7 +673,7 @@ class SessionLinkerLogicTests(unittest.TestCase):
                 self.assertTrue(data_dir.exists())
                 self.assertIn(session_linker.LINKED_FROM_ACCOUNT_KEY, session_linker.get_link_metadata(index_path))
             finally:
-                session_linker.shutil.rmtree = original_rmtree
+                session_linker._secure_rmtree = original_rmtree
                 session_linker.LINKS_FILE = original_links_file
                 session_linker.BACKUPS_DIR = original_backups_dir
 
