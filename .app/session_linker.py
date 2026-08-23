@@ -77,6 +77,14 @@ APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 ICON_PATH = APP_DIR / "icon.ico"
 ICON_PNG = APP_DIR / "icon.png"
+def _secure_rmtree(path: Path) -> None:
+    if path.is_symlink():
+        raise OSError(f"Refusing to remove a symlinked directory: {path}")
+    # Python's shutil.rmtree uses fd-based safe deletion internally on systems that support it.
+    # We still check for symlinks explicitly because rmtree can follow them on older systems.
+    shutil.rmtree(path)
+
+
 def _secure_mkdir(path: Path, parents: bool = False) -> None:
     if path.exists() and (path.is_symlink() or not path.is_dir()):
         raise OSError(f"Refusing to use non-directory or symlinked path: {path}")
@@ -818,7 +826,7 @@ def normalize_cowork_session_copy(
             raise OSError("Refusing to move or copy a symlinked project directory")
         if new_project.exists():
             shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
-            shutil.rmtree(old_project)
+            _secure_rmtree(old_project)
         else:
             old_project.rename(new_project)
 
@@ -893,7 +901,7 @@ def remove_session_from_account(session: dict, mode: str):
                 return False, "Remoção cancelada: pasta de dados Cowork é um symlink."
             backup_path = backup_dir_tree(index_path.parent, "cowork-workspace")
             if not data_dir.is_symlink() and data_dir.is_dir():
-                shutil.rmtree(data_dir)
+                _secure_rmtree(data_dir)
             index_path.unlink()
             remove_link_metadata(index_path)
         else:
