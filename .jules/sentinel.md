@@ -1,4 +1,0 @@
-## 2024-05-24 - [Add secure directory deletion wrapper for shutil.rmtree]
-**Vulnerability:** Calling `shutil.rmtree` directly without verifying the target path isn't a symlink can lead to accidental deletion of unintended files or directories, since some older or specific system configurations might resolve symlinks inadvertently.
-**Learning:** `shutil.rmtree` in modern Python versions safely uses `dir_fd` where supported to prevent Time-of-Check to Time-of-Use (TOCTOU) symlink hijacking internally, but it's essential to enforce an explicit `.is_symlink()` check before passing a path to `rmtree` as a defense-in-depth measure. An earlier attempt opened and closed an FD manually before calling `rmtree`, but that re-introduced the race condition.
-**Prevention:** Always verify a directory path with `.is_symlink()` prior to deletion, and rely on standard library implementations for fd-based directory walks where available.
