@@ -374,10 +374,18 @@ class SetupApp(tk.Tk):
                 buf = ctypes.create_unicode_buffer(260)
                 length = ctypes.windll.kernel32.GetSystemDirectoryW(buf, 260)
                 if length > 0:
-                    return os.path.join(buf[:length], subpath)
+                    base_dir = buf[:length]
+                    candidate = os.path.normpath(os.path.join(base_dir, subpath))
+                    if candidate.startswith(base_dir + os.sep) or candidate == base_dir:
+                        return candidate
             except Exception:
                 pass
-        return os.path.join(r"C:\Windows\System32", subpath)
+
+        fallback_base = r"C:\Windows\System32"
+        candidate = os.path.normpath(os.path.join(fallback_base, subpath))
+        if candidate.startswith(fallback_base + os.sep) or candidate == fallback_base:
+            return candidate
+        return os.path.join(fallback_base, "cmd.exe")  # Fail safe if traversal attempted
 
     def _run_setup(self):
         try:
