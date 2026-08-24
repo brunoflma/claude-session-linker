@@ -353,7 +353,7 @@ def load_labels() -> dict:
 
 
 def _secure_write_text(path: Path, content: str) -> None:
-    if ".." in str(path):
+    if ".." in path.parts:
         raise Exception("Invalid file path")
     if os.name == "posix":
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
@@ -366,7 +366,7 @@ def _secure_write_text(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
 
 def _secure_copy(src: Path, dest: Path) -> None:
-    if ".." in str(dest):
+    if ".." in dest.parts:
         raise Exception("Invalid file path")
     if src.is_symlink() or dest.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
@@ -475,17 +475,31 @@ def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
             buf = ctypes.create_unicode_buffer(260)
             length = ctypes.windll.kernel32.GetSystemDirectoryW(buf, 260)
             if length > 0:
-                return os.path.join(buf[:length], name)
+                base_dir = buf[:length]
+                candidate = os.path.normpath(os.path.join(base_dir, name))
+                if candidate.startswith(base_dir + os.sep) or candidate == base_dir:
+                    return candidate
         except Exception:
             pass
-        return os.path.join(r"C:\Windows\System32", name)
-    for directory in ("/usr/bin", "/bin", "/usr/sbin", "/sbin"):
-        candidate = os.path.join(directory, name)
-        if os.path.exists(candidate):
+
+        fallback_base = r"C:\Windows\System32"
+        candidate = os.path.normpath(os.path.join(fallback_base, name))
+        if candidate.startswith(fallback_base + os.sep) or candidate == fallback_base:
             return candidate
+        return os.path.join(fallback_base, "cmd.exe")
+
+    for directory in ("/usr/bin", "/bin", "/usr/sbin", "/sbin"):
+        candidate = os.path.normpath(os.path.join(directory, name))
+        if (candidate.startswith(directory + os.sep) or candidate == directory) and os.path.exists(candidate):
+            return candidate
+
     # Fail closed on systems without the expected binary instead of consulting
     # a user-controlled PATH (the subprocess call will safely fail).
-    return f"/usr/bin/{name}"
+    safe_fallback = "/usr/bin"
+    candidate = os.path.normpath(os.path.join(safe_fallback, name))
+    if candidate.startswith(safe_fallback + os.sep) or candidate == safe_fallback:
+        return candidate
+    return "/usr/bin/false"
 
 
 def is_desktop_running(platform: str = _PLATFORM) -> bool:
