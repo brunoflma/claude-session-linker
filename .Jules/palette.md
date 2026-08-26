@@ -1,3 +1,0 @@
-## 2025-02-23 - Async Button States
-**Learning:** Background disk I/O operations (like `os.scandir` loops and `subprocess` calls) without explicit loading indicators can make the app feel unresponsive or frozen to the user. Using button state changes (e.g., text="Atualizando...", state="disabled") provides a simple but effective asynchronous affordance that improves perceived performance and prevents accidental double-clicks during I/O operations.
-**Action:** Always add loading/disabled states to action buttons that trigger async or background threading work, especially for I/O heavy operations like disk scanning or data linking.
