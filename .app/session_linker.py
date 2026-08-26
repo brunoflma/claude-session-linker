@@ -1470,11 +1470,12 @@ class SessionLinkerApp(ctk.CTk):
         )
         self._desktop_warning.pack(anchor="w", pady=(12, 0), fill="x")
 
-        ctk.CTkButton(
+        self._refresh_btn = ctk.CTkButton(
             side, text="↻ Atualizar", height=32, fg_color=SURF, hover_color=SURF2,
             text_color=TXT2, border_width=1, border_color=BRD, font=self._f_x,
             command=self.refresh,
-        ).pack(anchor="w", pady=(8, 0), fill="x")
+        )
+        self._refresh_btn.pack(anchor="w", pady=(8, 0), fill="x")
 
         # --- Main (light) -----------------------------------------------
         main = ctk.CTkFrame(shell, fg_color=PAPER, corner_radius=0)
@@ -1517,6 +1518,8 @@ class SessionLinkerApp(ctk.CTk):
         mode = self.session_mode
         self._refresh_generation += 1
         generation = self._refresh_generation
+        if hasattr(self, "_refresh_btn"):
+            self._refresh_btn.configure(text="↻ Atualizando...", state="disabled")
 
         def worker():
             active_account = get_active_account_uuid()
@@ -1527,6 +1530,8 @@ class SessionLinkerApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _apply_refresh(self, generation, mode, active_account, sessions_by_account, running):
+        if hasattr(self, "_refresh_btn"):
+            self._refresh_btn.configure(text="↻ Atualizar", state="normal")
         if generation != self._refresh_generation or mode != self.session_mode:
             return
         self.active_account = active_account
