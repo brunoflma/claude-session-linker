@@ -688,14 +688,16 @@ def find_target_workspace_dir(base_dir: Path, account_id: str):
     account_dir = base_dir / account_id
     if not account_dir.exists() or account_dir.is_symlink():
         return None
+    # Bolt Optimization: Maintain os.DirEntry objects to use their cached .stat()
+    # avoiding redundant O(N) disk I/O syscalls during sorting compared to Path(d.path).stat()
     workspace_dirs = [
-        Path(d.path) for d in os.scandir(account_dir)
+        d for d in os.scandir(account_dir)
         if not d.is_symlink() and d.is_dir(follow_symlinks=False)
     ]
     if not workspace_dirs:
         return None
-    workspace_dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
-    return workspace_dirs[0]
+    workspace_dirs.sort(key=lambda d: d.stat(follow_symlinks=False).st_mtime, reverse=True)
+    return Path(workspace_dirs[0].path)
 
 
 def find_target_workspace_dir_in_roots(folder_name: str, account_id: str):
