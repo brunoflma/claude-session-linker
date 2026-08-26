@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# App runtime artifacts (never publish per AGENTS.md release protocol)
+.app/venv/
+.app/backups/
+.app/logs/
+.app/__pycache__/
+# Runtime user data — account labels & session link registry (sensitive; never publish)
+.app/account_labels.json
+.app/session_links.json
+
+# SDD scratch (subagent-driven-development workspace)
+.superpowers/
+
+# macOS
+.DS_Store
