@@ -538,7 +538,7 @@ def scan_sessions() -> dict:
     link_registry = load_link_registry()
     for claude_dir in CLAUDE_DIRS:
         sessions_dir = claude_dir / "claude-code-sessions"
-        if not sessions_dir.exists():
+        if sessions_dir.is_symlink() or not sessions_dir.is_dir():
             continue
         for account_entry in os.scandir(sessions_dir):
             if account_entry.is_symlink() or not account_entry.is_dir(follow_symlinks=False):
@@ -602,7 +602,7 @@ def scan_cowork_sessions() -> dict:
     link_registry = load_link_registry()
     for claude_dir in CLAUDE_DIRS:
         cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
-        if not cowork_sessions_dir.exists():
+        if cowork_sessions_dir.is_symlink() or not cowork_sessions_dir.is_dir():
             continue
         for account_entry in os.scandir(cowork_sessions_dir):
             if account_entry.is_symlink() or not account_entry.is_dir(follow_symlinks=False):
