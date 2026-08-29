@@ -123,6 +123,16 @@ if _TCL.exists():
 
 def _log(message):
     try:
+        # Security: prevent DoS by limiting log file size (5MB)
+        if ERR_LOG.exists() and not ERR_LOG.is_symlink() and ERR_LOG.stat().st_size > 5 * 1024 * 1024:
+            try:
+                backup = ERR_LOG.with_name(ERR_LOG.name + ".1")
+                if backup.exists() and not backup.is_symlink():
+                    backup.unlink()
+                ERR_LOG.rename(backup)
+            except Exception:
+                pass
+
         if os.name == "posix":
             flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
             if hasattr(os, "O_NOFOLLOW"):
