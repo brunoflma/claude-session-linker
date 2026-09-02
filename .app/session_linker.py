@@ -86,7 +86,7 @@ def _secure_rmtree(path: Path) -> None:
 
 
 def _secure_mkdir(path: Path, parents: bool = False) -> None:
-    if path.exists() and (path.is_symlink() or not path.is_dir()):
+    if path.is_symlink() or (path.exists() and not path.is_dir()):
         raise OSError(f"Refusing to use non-directory or symlinked path: {path}")
     path.mkdir(parents=parents, exist_ok=True, mode=0o700)
     if os.name == "posix":
@@ -699,7 +699,7 @@ def backup_sessions_dir(sessions_dir: Path = SESSIONS_DIR) -> Path:
 
 def find_target_workspace_dir(base_dir: Path, account_id: str):
     account_dir = base_dir / account_id
-    if not account_dir.exists() or account_dir.is_symlink():
+    if account_dir.is_symlink() or not account_dir.exists():
         return None
     # Bolt Optimization: Maintain os.DirEntry objects to use their cached .stat()
     # avoiding redundant O(N) disk I/O syscalls during sorting compared to Path(d.path).stat()
@@ -850,9 +850,9 @@ def normalize_cowork_session_copy(
     projects_dir = dest_data_dir / ".claude" / "projects"
     old_project = projects_dir / src_project_name
     new_project = projects_dir / dest_project_name
+    if old_project.is_symlink() or new_project.is_symlink():
+        raise OSError("Refusing to move or copy a symlinked project directory")
     if old_project.exists() and old_project != new_project:
-        if old_project.is_symlink() or new_project.is_symlink():
-            raise OSError("Refusing to move or copy a symlinked project directory")
         if new_project.exists():
             shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
             _secure_rmtree(old_project)
@@ -915,19 +915,19 @@ def _is_safe_cowork_data_dir(index_path: Path, data_dir: Path) -> bool:
 
 def remove_session_from_account(session: dict, mode: str):
     index_path = Path(session["path"])
-    if not index_path.exists():
-        return False, "Essa sessão já não existe mais nesta conta."
     if index_path.is_symlink():
         return False, "Remoção cancelada: o índice da sessão é um symlink."
+    if not index_path.exists():
+        return False, "Essa sessão já não existe mais nesta conta."
 
     try:
         if mode == "cowork":
             data_dir = session.get("data_dir")
             data_dir = Path(data_dir) if data_dir else index_path.with_suffix("")
-            if data_dir.exists() and not _is_safe_cowork_data_dir(index_path, data_dir):
-                return False, "Remoção cancelada: pasta de dados Cowork inesperada."
             if data_dir.is_symlink():
                 return False, "Remoção cancelada: pasta de dados Cowork é um symlink."
+            if data_dir.exists() and not _is_safe_cowork_data_dir(index_path, data_dir):
+                return False, "Remoção cancelada: pasta de dados Cowork inesperada."
             backup_path = backup_dir_tree(index_path.parent, "cowork-workspace")
             if not data_dir.is_symlink() and data_dir.is_dir():
                 _secure_rmtree(data_dir)
