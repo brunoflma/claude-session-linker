@@ -1,3 +1,0 @@
-## 2024-05-17 - Prevent false cancellations on async operations
-**Learning:** Background I/O processes in a GUI can create a false expectation of cancellation if the user is allowed to close the dialog or click "Cancelar" while the thread is still running invisibly. This applies heavily to file copying scenarios (like heavy Cowork sessions).
-**Action:** Always disable dialog close buttons, cancel buttons, and other interactive elements (like list selectors) during long-running background tasks. Only re-enable them (or morph them to a "Fechar" button) when the worker thread finishes and returns success or error.
