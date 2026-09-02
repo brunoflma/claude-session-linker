@@ -571,7 +571,10 @@ def scan_sessions() -> dict:
                     try:
                         if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
-                        data = json.loads(f.read_text(encoding="utf-8"))
+                        # Bolt Optimization: json.load(open("rb")) is significantly faster
+                        # than json.loads(Path.read_text()) for many small files in a loop
+                        with open(file_entry.path, "rb") as f_in:
+                            data = json.load(f_in)
                     except Exception:
                         continue
                     link_metadata = link_registry.get(_link_key(f), {})
@@ -635,7 +638,10 @@ def scan_cowork_sessions() -> dict:
                     try:
                         if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                             continue
-                        data = json.loads(f.read_text(encoding="utf-8"))
+                        # Bolt Optimization: json.load(open("rb")) is significantly faster
+                        # than json.loads(Path.read_text()) for many small files in a loop
+                        with open(file_entry.path, "rb") as f_in:
+                            data = json.load(f_in)
                     except Exception:
                         continue
                     link_metadata = link_registry.get(_link_key(f), {})
