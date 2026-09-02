@@ -2059,6 +2059,9 @@ class SessionLinkerApp(ctk.CTk):
             # and finish before the "Vinculando…" state is even noticeable.
             show_status("Vinculando…", TXT2, SURF2, BRD)
             link_btn.configure(state="disabled")
+            close_btn.configure(state="disabled")
+            for button in row_buttons.values():
+                button.configure(state="disabled")
 
             def worker():
                 if mode == "cowork":
@@ -2081,6 +2084,7 @@ class SessionLinkerApp(ctk.CTk):
                             button.configure(state="disabled")
                         link_btn.pack_forget()
                         close_btn.configure(
+                            state="normal",
                             text="Fechar",
                             fg_color=GREEN,
                             hover_color=GREEN_H,
@@ -2092,6 +2096,9 @@ class SessionLinkerApp(ctk.CTk):
                         self.refresh()
                     else:
                         link_btn.configure(state="normal")
+                        close_btn.configure(state="normal")
+                        for button in row_buttons.values():
+                            button.configure(state="normal")
 
                 self.after(0, apply)
 
