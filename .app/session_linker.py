@@ -1222,12 +1222,15 @@ def conversation_file_identity(session: dict, mode: str | None = None):
         data_dir = session.get("data_dir")
         if not data_dir:
             return None
-        path = Path(data_dir) / "audit.jsonl"
+        data_dir_path = Path(data_dir)
+        if data_dir_path.is_symlink() or not data_dir_path.is_dir():
+            return None
+        path = data_dir_path / "audit.jsonl"
     elif mode == "code":
         path = find_transcript_path(session.get("cliSessionId", ""))
     else:
         return None
-    if path is None or not path.exists():
+    if path is None or path.is_symlink() or not path.exists():
         return None
     try:
         return path.resolve()
