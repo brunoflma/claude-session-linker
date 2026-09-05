@@ -246,7 +246,7 @@ def _unique_paths(paths: list[Path]) -> list[Path]:
 
 def is_claude_data_dir(path: Path) -> bool:
     return not path.is_symlink() and path.is_dir() and any(
-        (path / child).exists()
+        not (path / child).is_symlink() and (path / child).exists()
         for child in ("config.json", "claude-code-sessions", "local-agent-mode-sessions")
     )
 
@@ -261,8 +261,8 @@ def claude_dir_activity_time(path: Path) -> float:
     mtimes = []
     for probe in probes:
         try:
-            if probe.exists():
-                mtimes.append(probe.stat().st_mtime)
+            if not probe.is_symlink() and probe.exists():
+                mtimes.append(probe.stat(follow_symlinks=False).st_mtime)
         except OSError:
             continue
     return max(mtimes, default=0.0)
@@ -740,7 +740,8 @@ def ensure_index_linked(src_path: Path, dest_path: Path, source_account_id: str,
 def _new_cli_session_id(transcript_dir: Path) -> str:
     while True:
         cli_session_id = str(uuid.uuid4())
-        if not (transcript_dir / f"{cli_session_id}.jsonl").exists():
+        target = transcript_dir / f"{cli_session_id}.jsonl"
+        if not target.is_symlink() and not target.exists():
             return cli_session_id
 
 
@@ -764,7 +765,7 @@ def write_code_index_clone(
     data = source_data
     source_cli_session_id = source_data.get("cliSessionId") or ""
     dest_cli_session_id = ""
-    if dest_path.exists():
+    if not dest_path.is_symlink() and dest_path.exists():
         try:
             dest_data = _read_index_json(dest_path)
             dest_cli_session_id = dest_data.get("cliSessionId") or ""
@@ -777,10 +778,10 @@ def write_code_index_clone(
 
     if source_cli_session_id:
         transcript_path = find_transcript_path(source_cli_session_id)
-        if transcript_path and transcript_path.exists():
+        if transcript_path and not transcript_path.is_symlink() and transcript_path.exists():
             cloned_cli_session_id = _new_cli_session_id(transcript_path.parent)
             cloned_transcript_path = transcript_path.with_name(f"{cloned_cli_session_id}.jsonl")
-            if transcript_path.is_symlink() or cloned_transcript_path.is_symlink():
+            if cloned_transcript_path.is_symlink():
                 raise OSError("Refusing to copy a symlinked transcript")
             _secure_copy(transcript_path, cloned_transcript_path)
             data["cliSessionId"] = cloned_cli_session_id
@@ -1110,7 +1111,7 @@ def find_transcript_path(cli_session_id: str):
     which project-folder hash it lives under -- session ids are UUIDs, so a
     filename match is unambiguous without needing to reproduce Claude
     Code's cwd-to-folder-name hashing scheme."""
-    if not cli_session_id or not CLAUDE_PROJECTS_DIR.exists():
+    if not cli_session_id or CLAUDE_PROJECTS_DIR.is_symlink() or not CLAUDE_PROJECTS_DIR.exists():
         return None
     # Security: Ensure cli_session_id is just a UUID/alphanumeric to prevent
     # path traversal or glob injection if a local_*.json was modified maliciously.
@@ -1213,7 +1214,7 @@ def conversation_file_available(session: dict, mode: str | None = None) -> bool:
         return True
     if mode == "cowork":
         data_dir = session.get("data_dir")
-        return bool(data_dir and not data_dir.is_symlink() and data_dir.is_dir() and (data_dir / "audit.jsonl").exists())
+        return bool(data_dir and not data_dir.is_symlink() and data_dir.is_dir() and not (data_dir / "audit.jsonl").is_symlink() and (data_dir / "audit.jsonl").exists())
     return find_transcript_path(session.get("cliSessionId", "")) is not None
 
 
