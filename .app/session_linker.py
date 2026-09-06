@@ -356,9 +356,10 @@ CONFIG_JSON = CLAUDE_DIR / "config.json"
 def load_labels() -> dict:
     if not LABELS_FILE.is_symlink() and LABELS_FILE.is_file():
         try:
-            if LABELS_FILE.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                return {}
-            return json.loads(LABELS_FILE.read_text(encoding="utf-8"))
+            with LABELS_FILE.open("r", encoding="utf-8") as f:
+                if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                    return {}
+                return json.load(f)
         except Exception:
             return {}
     return {}
@@ -419,9 +420,10 @@ def _link_key(path: Path) -> str:
 def load_link_registry() -> dict:
     if not LINKS_FILE.is_symlink() and LINKS_FILE.is_file():
         try:
-            if LINKS_FILE.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                return {}
-            return json.loads(LINKS_FILE.read_text(encoding="utf-8"))
+            with LINKS_FILE.open("r", encoding="utf-8") as f:
+                if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                    return {}
+                return json.load(f)
         except Exception:
             return {}
     return {}
@@ -465,9 +467,10 @@ def get_active_account_uuid():
         if config_json.is_symlink() or not config_json.is_file():
             continue
         try:
-            if config_json.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                continue
-            data = json.loads(config_json.read_text(encoding="utf-8"))
+            with config_json.open("r", encoding="utf-8") as f:
+                if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                    continue
+                data = json.load(f)
             account_uuid = data.get("lastKnownAccountUuid")
             if account_uuid:
                 return account_uuid
@@ -569,11 +572,10 @@ def scan_sessions() -> dict:
                         continue
                     f = Path(file_entry.path)
                     try:
-                        if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                            continue
-                        # Bolt Optimization: json.load(open("rb")) is significantly faster
-                        # than json.loads(Path.read_text()) for many small files in a loop
                         with open(file_entry.path, "rb") as f_in:
+                            if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                                continue
+                            # Bolt Optimization: json.load(open("rb")) is significantly faster
                             data = json.load(f_in)
                     except Exception:
                         continue
@@ -636,11 +638,10 @@ def scan_cowork_sessions() -> dict:
                         continue
                     f = Path(file_entry.path)
                     try:
-                        if file_entry.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                            continue
-                        # Bolt Optimization: json.load(open("rb")) is significantly faster
-                        # than json.loads(Path.read_text()) for many small files in a loop
                         with open(file_entry.path, "rb") as f_in:
+                            if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+                                continue
+                            # Bolt Optimization: json.load(open("rb")) is significantly faster
                             data = json.load(f_in)
                     except Exception:
                         continue
@@ -748,9 +749,10 @@ def _new_cli_session_id(transcript_dir: Path) -> str:
 def _read_index_json(path: Path) -> dict:
     if path.is_symlink():
         raise OSError(f"Refusing to read a symlinked session index: {path}")
-    if path.stat().st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-        raise OSError(f"Refusing to read an unusually large session index: {path}")
-    return json.loads(path.read_text(encoding="utf-8"))
+    with path.open("r", encoding="utf-8") as f:
+        if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
+            raise OSError(f"Refusing to read an unusually large session index: {path}")
+        return json.load(f)
 
 
 def write_code_index_clone(
@@ -817,9 +819,10 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         if path.suffix.lower() not in text_suffixes:
             continue
         try:
-            if path.stat().st_size > 25 * 1024 * 1024:  # Security: 25MB limit
-                continue
-            text = path.read_text(encoding="utf-8")
+            with path.open("r", encoding="utf-8") as f:
+                if os.fstat(f.fileno()).st_size > 25 * 1024 * 1024:  # Security: 25MB limit
+                    continue
+                text = f.read()
         except Exception:
             continue
         updated = text
@@ -1175,9 +1178,9 @@ def read_session_progress(session: dict, mode: str) -> dict:
     message_count = 0
     last_ts_raw = None
     try:
-        if path.stat().st_size > 50 * 1024 * 1024:  # Security: 50MB limit to prevent DoS (OOM)
-            return {"found": False}
         with path.open("r", encoding="utf-8") as f:
+            if os.fstat(f.fileno()).st_size > 50 * 1024 * 1024:  # Security: 50MB limit to prevent DoS (OOM)
+                return {"found": False}
             for line in f:
                 # Bolt Optimization: Fast-path substring check to prevent O(N) CPU bottleneck
                 # from full JSON parsing on irrelevant lines in large transcripts.
