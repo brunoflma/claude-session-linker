@@ -1,0 +1,4 @@
+## 2024-05-24 - File Attribute Checking TOCTOU
+**Vulnerability:** Path.stat() implicitly follows symlinks, exposing the application to crashes via `FileNotFoundError` if a file is maliciously replaced with a broken symlink after an existence/symlink check but before `stat()` is called (TOCTOU).
+**Learning:** `pathlib.Path.stat()` must explicitly have `follow_symlinks=False` passed to it when inspecting untrusted paths in order to prevent an `OSError` crash when the target is a broken symlink.
+**Prevention:** Always use `path.stat(follow_symlinks=False)` when querying attributes on potentially untrusted paths to ensure the check operates on the link itself, rather than failing when attempting to resolve a non-existent target.

@@ -1202,7 +1202,7 @@ def read_session_progress(session: dict, mode: str) -> dict:
         "path": path,
         "message_count": message_count,
         "last_timestamp": parse_iso_ts(last_ts_raw),
-        "mtime": path.stat().st_mtime,
+        "mtime": path.stat(follow_symlinks=False).st_mtime,
     }
 
 
