@@ -1280,16 +1280,33 @@ def find_possible_duplicates(sessions_by_account: dict, mode: str | None = None)
             cwd = (s.get("cwd") or "").rstrip("\\/").lower()
             if not cwd:
                 continue
-            if not conversation_file_available(s, mode):
-                continue
             by_cwd.setdefault(cwd, []).append((account_id, s))
 
     duplicates = {}
     for cwd, entries in by_cwd.items():
+        if len(entries) < 2:
+            continue
         accounts_involved = {a for a, _ in entries}
-        cli_ids_involved = {s["cliSessionId"] for _, s in entries}
-        if len(accounts_involved) >= 2 and len(cli_ids_involved) >= 2:
-            duplicates[cwd] = entries
+        if len(accounts_involved) < 2:
+            continue
+        cli_ids_involved = {s.get("cliSessionId") for _, s in entries if s.get("cliSessionId")}
+        if len(cli_ids_involved) < 2:
+            continue
+
+        # Bolt Optimization: Delay expensive disk I/O validation checks until we've
+        # confirmed multiple independent sessions actually share this cwd.
+        valid_entries = []
+        for account_id, s in entries:
+            if conversation_file_available(s, mode):
+                valid_entries.append((account_id, s))
+
+        if len(valid_entries) < 2:
+            continue
+        valid_accounts = {a for a, _ in valid_entries}
+        valid_cli_ids = {s.get("cliSessionId") for _, s in valid_entries if s.get("cliSessionId")}
+
+        if len(valid_accounts) >= 2 and len(valid_cli_ids) >= 2:
+            duplicates[cwd] = valid_entries
     return duplicates
 
 
