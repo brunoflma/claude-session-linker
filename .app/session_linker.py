@@ -1543,6 +1543,9 @@ class SessionLinkerApp(ctk.CTk):
         if hasattr(self, "_refresh_btn"):
             self._refresh_btn.configure(text="↻ Atualizando...", state="disabled")
 
+        for btn in self._mode_btns.values():
+            btn.configure(state="disabled")
+
         def worker():
             active_account = get_active_account_uuid()
             sessions_by_account = scan_cowork_sessions() if mode == "cowork" else scan_sessions()
@@ -1554,6 +1557,8 @@ class SessionLinkerApp(ctk.CTk):
     def _apply_refresh(self, generation, mode, active_account, sessions_by_account, running):
         if hasattr(self, "_refresh_btn"):
             self._refresh_btn.configure(text="↻ Atualizar", state="normal")
+        for btn in self._mode_btns.values():
+            btn.configure(state="normal")
         if generation != self._refresh_generation or mode != self.session_mode:
             return
         self.active_account = active_account
@@ -2267,6 +2272,13 @@ class SessionLinkerApp(ctk.CTk):
         verdict = ctk.CTkLabel(box, text="", font=self._f_b, text_color=TXT, wraplength=560, justify="left")
         verdict.pack(anchor="w", padx=16, pady=(14, 6), fill="x")
 
+        actions = self._dialog_actions(box)
+        actions.pack(fill="x", padx=16, pady=(6, 16))
+        close_btn = self._dialog_button(actions, "Fechar", dialog.destroy, "secondary", "right")
+        close_btn.configure(state="disabled")
+
+        dialog.bind("<Escape>", lambda _e: dialog.destroy() if close_btn.cget("state") != "disabled" else None)
+
         def fmt_progress(p):
             if not p.get("found"):
                 return "Arquivo de conversa não encontrado neste computador."
@@ -2277,6 +2289,7 @@ class SessionLinkerApp(ctk.CTk):
         def apply_results(pa, pb):
             if not dialog.winfo_exists():
                 return
+            close_btn.configure(state="normal")
             status.configure(text="")
             lbl_a.configure(text=fmt_progress(pa))
             lbl_b.configure(text=fmt_progress(pb))
@@ -2302,12 +2315,6 @@ class SessionLinkerApp(ctk.CTk):
             self.after(0, lambda: apply_results(pa, pb))
 
         threading.Thread(target=worker, daemon=True).start()
-
-        dialog.bind("<Escape>", lambda _e: dialog.destroy())
-
-        actions = self._dialog_actions(box)
-        actions.pack(fill="x", padx=16, pady=(6, 16))
-        self._dialog_button(actions, "Fechar", dialog.destroy, "secondary", "right")
 
     def _center_toplevel(self, dialog, w, h):
         self.update_idletasks()
