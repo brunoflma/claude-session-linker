@@ -380,7 +380,7 @@ def _secure_write_text(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
 
 def _secure_copy(src: Path, dest: Path) -> None:
-    if ".." in dest.parts:
+    if ".." in src.parts or ".." in dest.parts:
         raise Exception("Invalid file path")
     if src.is_symlink() or dest.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
