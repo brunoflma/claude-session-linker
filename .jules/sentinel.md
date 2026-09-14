@@ -1,4 +1,0 @@
-## 2025-02-23 - Add timeout to setup subprocess and tighten executable path validation
-**Vulnerability:** Subprocess `proc.wait()` in `setup_gui.py` lacked a timeout configuration, exposing the application to a potential Denial of Service (DoS) if the setup process hung indefinitely. Additionally, `_get_system_executable` lacked explicit checks against ".." path traversal.
-**Learning:** Even internal setup scripts initiated by the user must protect against hanging processes and validate subpaths given to system executable path resolvers.
-**Prevention:** Always provide a `timeout` argument to blocking subprocess operations (like `proc.wait()`), and validate subpaths for traversal attempts ("..") before resolving them with `os.path.join()`.
