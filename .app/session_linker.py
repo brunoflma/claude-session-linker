@@ -485,6 +485,8 @@ _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE
 def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
     """Securely resolves the path to a system executable without relying on
     PATH or SystemRoot environment variables, preventing binary planting."""
+    if ".." in name:
+        raise ValueError(f"Invalid path traversal in executable name: {name}")
     if platform.startswith("win"):
         try:
             import ctypes

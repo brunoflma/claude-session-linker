@@ -368,6 +368,8 @@ class SetupApp(tk.Tk):
     def _get_system_executable(self, subpath: str) -> str:
         """Securely resolves the path to a system executable without relying on
         PATH or SystemRoot environment variables, preventing binary planting."""
+        if ".." in subpath:
+            raise ValueError(f"Invalid path traversal in subpath: {subpath}")
         if sys.platform.startswith("win"):
             try:
                 import ctypes
@@ -411,7 +413,7 @@ class SetupApp(tk.Tk):
             if proc.stdout is not None:
                 for line in proc.stdout:
                     self.after(0, self._append, line)
-            proc.wait()
+            proc.wait(timeout=300)
             code = proc.returncode
         except Exception as exc:
             self.after(0, self._finish, 1, f"Falha ao executar o setup:\n{exc}")
