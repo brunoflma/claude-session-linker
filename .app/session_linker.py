@@ -1539,7 +1539,7 @@ class SessionLinkerApp(ctk.CTk):
         self._desktop_warning.pack(anchor="w", pady=(12, 0), fill="x")
 
         self._refresh_btn = ctk.CTkButton(
-            side, text="↻ Atualizar", height=32, fg_color=SURF, hover_color=SURF2,
+            side, cursor="hand2", text="↻ Atualizar", height=32, fg_color=SURF, hover_color=SURF2,
             text_color=TXT2, border_width=1, border_color=BRD, font=self._f_x,
             command=self.refresh,
         )
@@ -1636,7 +1636,7 @@ class SessionLinkerApp(ctk.CTk):
     def _make_mode_button(self, parent, key, label, col):
         is_active = self.session_mode == key
         btn = ctk.CTkButton(
-            parent, text=label, height=34, corner_radius=6,
+            parent, cursor="hand2", text=label, height=34, corner_radius=6,
             font=self._f_b if is_active else self._f_s,
             fg_color=SURF2 if is_active else "transparent",
             hover_color=SURF2, text_color=TXT if is_active else TXT3,
@@ -1703,7 +1703,7 @@ class SessionLinkerApp(ctk.CTk):
         self._account_tiles = []
 
         all_btn = ctk.CTkButton(
-            self._accounts_list, text="Todas as contas", anchor="w", height=34,
+            self._accounts_list, cursor="hand2", text="Todas as contas", anchor="w", height=34,
             corner_radius=6, font=self._f_b if self.selected_account is None else self._f_s,
             fg_color=SURF2 if self.selected_account is None else "transparent",
             hover_color=SURF2, text_color=TXT,
@@ -1733,7 +1733,7 @@ class SessionLinkerApp(ctk.CTk):
             # it -- read as a designed block instead of the earlier version,
             # where a single wrapped label looked like broken text.
             btn = ctk.CTkButton(
-                row, text=label, anchor="w", height=44,
+                row, cursor="hand2", text=label, anchor="w", height=44,
                 corner_radius=6, font=self._f_b,
                 fg_color="transparent", hover_color=SURF2,
                 text_color=GREEN if is_active else TXT,
@@ -1749,7 +1749,7 @@ class SessionLinkerApp(ctk.CTk):
             meta.bind("<Button-1>", lambda _e, a=account_id: self._select_account(a))
 
             edit_btn = ctk.CTkButton(
-                row, text="✎", width=34, height=34, corner_radius=6,
+                row, cursor="hand2", text="✎", width=34, height=34, corner_radius=6,
                 fg_color=SURF2, hover_color=SURF3, text_color=TXT2,
                 border_width=1, border_color=BRD,
                 font=self._f_x, command=lambda a=account_id: self._rename_account(a),
@@ -1879,7 +1879,7 @@ class SessionLinkerApp(ctk.CTk):
             ]
             if others:
                 ctk.CTkButton(
-                    inner, text=f"⚠ Possível duplicata em {self._plural_other_accounts(len(set(a for a, _ in others)))} — comparar",
+                    inner, cursor="hand2", text=f"⚠ Possível duplicata em {self._plural_other_accounts(len(set(a for a, _ in others)))} — comparar",
                     anchor="w", height=28, corner_radius=6, font=self._f_x,
                     fg_color=WARN_BG, hover_color=AMBER, text_color=AMBER, border_width=1, border_color=AMBER,
                     command=lambda a=account_id, s=session, o=others, m=card_mode: self._open_compare_dialog((a, s), o, m),
@@ -1891,18 +1891,18 @@ class SessionLinkerApp(ctk.CTk):
         for col in range(3):
             actions.grid_columnconfigure(col, weight=1, uniform="session_actions")
         ctk.CTkButton(
-            actions, text="🔗 Vincular conta", height=32, fg_color=GREEN, hover_color=GREEN_H,
+            actions, cursor="hand2", text="🔗 Vincular conta", height=32, fg_color=GREEN, hover_color=GREEN_H,
             text_color=INK, font=self._f_x, corner_radius=6,
             command=lambda s=session, a=account_id, m=card_mode: self._open_link_dialog(s, a, m),
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
         compare_btn = ctk.CTkButton(
-            actions, text="⇄ Comparar", height=32, fg_color=SURF2, hover_color=SURF3,
+            actions, cursor="hand2", text="⇄ Comparar", height=32, fg_color=SURF2, hover_color=SURF3,
             text_color=TXT, font=self._f_x, corner_radius=6,
             command=lambda s=session, a=account_id, m=card_mode: self._open_compare_picker((a, s), m),
         )
         compare_btn.grid(row=0, column=1, sticky="ew", padx=6)
         remove_btn = ctk.CTkButton(
-            actions, text="Remover", height=32, fg_color=RED, hover_color=RED_H,
+            actions, cursor="hand2", text="Remover", height=32, fg_color=RED, hover_color=RED_H,
             text_color="#FFFFFF", font=self._f_x, corner_radius=6,
             command=lambda s=session, a=account_id, m=card_mode: self._open_remove_dialog(s, a, m),
         )
@@ -2072,7 +2072,7 @@ class SessionLinkerApp(ctk.CTk):
 
         for a in others:
             b = ctk.CTkButton(
-                target_rows, text=display_name(a), anchor="w", height=38, corner_radius=6,
+                target_rows, cursor="hand2", text=display_name(a), anchor="w", height=38, corner_radius=6,
                 font=self._f_s, fg_color="transparent", hover_color=SURF3, text_color=TXT,
                 border_width=1, border_color=BRD,
                 command=lambda a=a: select_target(a),
@@ -2254,7 +2254,7 @@ class SessionLinkerApp(ctk.CTk):
             prefix = "Vinculada  ·  " if linked else ""
             meta = self._clip(f'{prefix}{self._account_label(a)}  ·  {s["cwd"]}', 72)
             ctk.CTkButton(
-                scroll, text=f"{title}\n{meta}", anchor="w", height=48, corner_radius=6, font=self._f_x,
+                scroll, cursor="hand2", text=f"{title}\n{meta}", anchor="w", height=48, corner_radius=6, font=self._f_x,
                 fg_color="transparent", hover_color=SURF3, text_color=TXT,
                 border_width=1, border_color=BRD,
                 command=lambda a=a, s=s, m=mode: (dialog.destroy(), self._show_comparison(source, (a, s), m)),
@@ -2388,7 +2388,7 @@ class SessionLinkerApp(ctk.CTk):
         else:
             fg, hover, color, width = SURF2, SURF3, TXT2, 116
         btn = ctk.CTkButton(
-            parent, text=text, width=width, height=42, fg_color=fg,
+            parent, cursor="hand2", text=text, width=width, height=42, fg_color=fg,
             hover_color=hover, text_color=color, font=self._f_s,
             corner_radius=6, command=command,
         )
