@@ -1,0 +1,3 @@
+## 2024-05-24 - Provide Interactive Hover Affordances with cursor="hand2"
+**Learning:** In the customtkinter UI framework, standard buttons (`CTkButton`) don't default to a hand cursor when hovered over, which can obscure interactivity, especially for text-like buttons or small icons. Passing the standard Tkinter argument `cursor="hand2"` works perfectly and significantly improves micro-UX by providing immediate affordances for clickable elements.
+**Action:** When creating `CTkButton` instances or binding `<Button-1>` to `CTkLabel` in the application, explicitly pass `cursor="hand2"` to ensure they exhibit a proper interactive hover state.
