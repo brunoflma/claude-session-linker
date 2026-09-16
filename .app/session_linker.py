@@ -567,11 +567,23 @@ def scan_sessions() -> dict:
                 if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
                 workspace_dir = Path(workspace_entry.path)
+
+                # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
+                # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
+                # then use a fast set lookup instead of data_dir.is_symlink() and data_dir.is_dir()
+                json_files = []
+                valid_data_dirs = set()
+
                 for file_entry in os.scandir(workspace_entry.path):
-                    if not (file_entry.name.startswith("local_") and file_entry.name.endswith(".json")):
+                    if file_entry.is_symlink():
                         continue
-                    if file_entry.is_symlink() or not file_entry.is_file(follow_symlinks=False):
-                        continue
+                    if file_entry.is_file(follow_symlinks=False):
+                        if file_entry.name.startswith("local_") and file_entry.name.endswith(".json"):
+                            json_files.append(file_entry)
+                    elif file_entry.is_dir(follow_symlinks=False):
+                        valid_data_dirs.add(file_entry.name)
+
+                for file_entry in json_files:
                     f = Path(file_entry.path)
                     try:
                         with open(file_entry.path, "rb") as f_in:
@@ -633,11 +645,23 @@ def scan_cowork_sessions() -> dict:
                 if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
                 workspace_dir = Path(workspace_entry.path)
+
+                # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
+                # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
+                # then use a fast set lookup instead of data_dir.is_symlink() and data_dir.is_dir()
+                json_files = []
+                valid_data_dirs = set()
+
                 for file_entry in os.scandir(workspace_entry.path):
-                    if not (file_entry.name.startswith("local_") and file_entry.name.endswith(".json")):
+                    if file_entry.is_symlink():
                         continue
-                    if file_entry.is_symlink() or not file_entry.is_file(follow_symlinks=False):
-                        continue
+                    if file_entry.is_file(follow_symlinks=False):
+                        if file_entry.name.startswith("local_") and file_entry.name.endswith(".json"):
+                            json_files.append(file_entry)
+                    elif file_entry.is_dir(follow_symlinks=False):
+                        valid_data_dirs.add(file_entry.name)
+
+                for file_entry in json_files:
                     f = Path(file_entry.path)
                     try:
                         with open(file_entry.path, "rb") as f_in:
@@ -648,10 +672,13 @@ def scan_cowork_sessions() -> dict:
                     except Exception:
                         continue
                     link_metadata = link_registry.get(_link_key(f), {})
-                    data_dir = workspace_dir / f.stem
+
+                    stem = file_entry.name[:-5]
+                    data_dir = workspace_dir / stem if stem in valid_data_dirs else None
+
                     account_sessions.append({
                         "path": f,
-                        "data_dir": data_dir if not data_dir.is_symlink() and data_dir.is_dir() else None,
+                        "data_dir": data_dir,
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": cowork_sessions_dir,
