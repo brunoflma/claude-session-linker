@@ -368,7 +368,7 @@ class SetupApp(tk.Tk):
     def _get_system_executable(self, subpath: str) -> str:
         """Securely resolves the path to a system executable without relying on
         PATH or SystemRoot environment variables, preventing binary planting."""
-        if ".." in subpath:
+        if ".." in Path(subpath).parts:
             raise ValueError(f"Invalid path traversal in subpath: {subpath}")
         if sys.platform.startswith("win"):
             try:
