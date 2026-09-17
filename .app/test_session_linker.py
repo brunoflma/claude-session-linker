@@ -947,6 +947,17 @@ class MacDesktopDetectionTests(unittest.TestCase):
         path = session_linker._get_system_executable("pgrep", platform="darwin")
         self.assertTrue(path == "/usr/bin/pgrep" or path.endswith("/pgrep") or path == "pgrep")
 
+    def test_get_system_executable_path_traversal(self):
+        with self.assertRaises(ValueError):
+            session_linker._get_system_executable("../cmd.exe", platform="win32")
+        with self.assertRaises(ValueError):
+            session_linker._get_system_executable("bin/../../sh", platform="darwin")
+
+    def test_get_system_executable_path_traversal_false_positive(self):
+        # file..exe should not trigger the traversal check
+        result = session_linker._get_system_executable("pgrep..exe", platform="darwin")
+        self.assertTrue(result.endswith("pgrep..exe") or result == "/usr/bin/false")
+
 
 class BackupSecurityTests(unittest.TestCase):
     def test_backup_permissions_posix(self):

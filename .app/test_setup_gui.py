@@ -50,5 +50,35 @@ class SetupGuiSecurityTests(unittest.TestCase):
                 self.assertTrue("system32" in cmd.lower())
                 self.assertTrue(os.path.isabs(cmd) or cmd.startswith("C:\\") or cmd.startswith("c:\\"))
 
+    def test_setup_gui_path_traversal(self):
+        spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
+        setup_gui = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup_gui)
+
+        class DummyApp:
+            _get_system_executable = setup_gui.SetupApp._get_system_executable
+
+        dummy_self = DummyApp()
+
+        with self.assertRaises(ValueError):
+            dummy_self._get_system_executable("../cmd.exe")
+
+        with self.assertRaises(ValueError):
+            dummy_self._get_system_executable("System32/../../cmd.exe")
+
+    def test_setup_gui_path_traversal_false_positive(self):
+        spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
+        setup_gui = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup_gui)
+
+        class DummyApp:
+            _get_system_executable = setup_gui.SetupApp._get_system_executable
+
+        dummy_self = DummyApp()
+
+        # file..exe should not trigger the traversal check
+        result = dummy_self._get_system_executable("file..exe")
+        self.assertTrue(result.endswith("file..exe") or "cmd.exe" in result)
+
 if __name__ == "__main__":
     unittest.main()

@@ -136,16 +136,12 @@ def _log(message):
         except OSError:
             pass
 
-        if os.name == "posix":
-            flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
-            if hasattr(os, "O_NOFOLLOW"):
-                flags |= getattr(os, "O_NOFOLLOW")
-            fd = os.open(ERR_LOG, flags, 0o600)
-            with os.fdopen(fd, "a", encoding="utf-8") as f:
-                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-        else:
-            with ERR_LOG.open("a", encoding="utf-8") as f:
-                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= getattr(os, "O_NOFOLLOW")
+        fd = os.open(ERR_LOG, flags, 0o600)
+        with os.fdopen(fd, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
     except Exception:
         pass
 
@@ -369,31 +365,25 @@ def load_labels() -> dict:
 def _secure_write_text(path: Path, content: str) -> None:
     if ".." in path.parts:
         raise Exception("Invalid file path")
-    if os.name == "posix":
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= getattr(os, "O_NOFOLLOW")
-        fd = os.open(path, flags, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(content)
-    else:
-        path.write_text(content, encoding="utf-8")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= getattr(os, "O_NOFOLLOW")
+    fd = os.open(path, flags, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(content)
 
 def _secure_copy(src: Path, dest: Path) -> None:
     if ".." in src.parts or ".." in dest.parts:
         raise Exception("Invalid file path")
     if src.is_symlink() or dest.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
-    if os.name == "posix":
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= getattr(os, "O_NOFOLLOW")
-        fd = os.open(dest, flags, 0o600)
-        with os.fdopen(fd, "wb") as f_dst, src.open("rb") as f_src:
-            shutil.copyfileobj(f_src, f_dst)
-        shutil.copystat(src, dest, follow_symlinks=False)
-    else:
-        shutil.copy2(src, dest, follow_symlinks=False)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= getattr(os, "O_NOFOLLOW")
+    fd = os.open(dest, flags, 0o600)
+    with os.fdopen(fd, "wb") as f_dst, src.open("rb") as f_src:
+        shutil.copyfileobj(f_src, f_dst)
+    shutil.copystat(src, dest, follow_symlinks=False)
 
 
 def save_labels(labels: dict) -> None:
@@ -485,7 +475,7 @@ _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE
 def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
     """Securely resolves the path to a system executable without relying on
     PATH or SystemRoot environment variables, preventing binary planting."""
-    if ".." in name:
+    if ".." in Path(name).parts:
         raise ValueError(f"Invalid path traversal in executable name: {name}")
     if platform.startswith("win"):
         try:
@@ -708,17 +698,12 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
     zip_path = BACKUPS_DIR / f"{safe_label}-{stamp}.zip"
 
     # Security: create file securely preventing TOCTOU leaks
-    if os.name == "posix":
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= getattr(os, "O_NOFOLLOW")
-        fd = os.open(zip_path, flags, 0o600)
-        with os.fdopen(fd, "wb") as f:
-            with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
-                for target_f in _safe_walk_files(dir_path):
-                    zf.write(target_f, target_f.relative_to(dir_path.parent))
-    else:
-        with zipfile.ZipFile(zip_path, "x", zipfile.ZIP_DEFLATED) as zf:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= getattr(os, "O_NOFOLLOW")
+    fd = os.open(zip_path, flags, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
             for target_f in _safe_walk_files(dir_path):
                 zf.write(target_f, target_f.relative_to(dir_path.parent))
 
