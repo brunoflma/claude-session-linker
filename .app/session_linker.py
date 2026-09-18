@@ -1190,6 +1190,10 @@ def read_session_progress(session: dict, mode: str) -> dict:
             if os.fstat(f.fileno()).st_size > 50 * 1024 * 1024:  # Security: 50MB limit to prevent DoS (OOM)
                 return {"found": False}
             for line in f:
+                # Security: prevent OOM/CPU exhaustion by ignoring unusually long lines (e.g. minified/malicious data)
+                if len(line) > 1024 * 1024:  # 1MB limit
+                    continue
+
                 # Bolt Optimization: Fast-path substring check to prevent O(N) CPU bottleneck
                 # from full JSON parsing on irrelevant lines in large transcripts.
                 has_type = '"user"' in line or '"assistant"' in line

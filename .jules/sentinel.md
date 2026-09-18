@@ -1,0 +1,4 @@
+## 2024-05-16 - Prevent DoS via Unbounded Individual Line Parsing
+**Vulnerability:** Even when capping the total size of parsed files (e.g. transcript limits of 50MB), parsing line-by-line using `for line in f` without verifying the string length per line leaves the app vulnerable to memory exhaustion (OOM) or CPU blocking from parsing a single unexpectedly huge entry. An attacker could craft a 40MB single-line malicious JSON log.
+**Learning:** Checking file sizes is necessary but insufficient if parsing unbounded line blocks, specifically `json.loads(line)` and `line.strip()`.
+**Prevention:** In iterative or file stream parsing where single records can be arbitrarily injected, always enforce a hard string length limit (e.g., `1MB`) before attempting to `strip()` or `json.loads()` that segment to ensure predictable memory bounds.
