@@ -1,0 +1,4 @@
+## 2025-02-18 - TOCTOU Symlink Hijacking During File Reads
+**Vulnerability:** Widespread use of `Path.open("r")` or `open()` directly after checking `Path.is_symlink()` creates a Time-of-Check to Time-of-Use (TOCTOU) race condition where a symlink could be substituted between the check and the actual read operation.
+**Learning:** `os.O_NOFOLLOW` is required for securely opening file descriptors for reading on untrusted paths, not just writing. `path.is_symlink()` executes a separate `lstat` call, making a subsequent `open()` inherently non-atomic.
+**Prevention:** Always use atomic operations on the file descriptor directly (e.g. `os.open` with `os.O_NOFOLLOW | os.O_RDONLY` where supported) to open files securely for reading instead of standard `open()` or `Path.open()`, then wrap the secure FD with `os.fdopen`.
