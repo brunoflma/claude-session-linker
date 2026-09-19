@@ -352,7 +352,7 @@ CONFIG_JSON = CLAUDE_DIR / "config.json"
 def load_labels() -> dict:
     if not LABELS_FILE.is_symlink() and LABELS_FILE.is_file():
         try:
-            with LABELS_FILE.open("r", encoding="utf-8") as f:
+            with _secure_open_read(LABELS_FILE, "r", encoding="utf-8") as f:
                 if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                     return {}
                 return json.load(f)
@@ -360,6 +360,14 @@ def load_labels() -> dict:
             return {}
     return {}
 
+
+
+def _secure_open_read(path: Path | str, mode: str = "r", encoding: str | None = None):
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= getattr(os, "O_NOFOLLOW")
+    fd = os.open(path, flags)
+    return os.fdopen(fd, mode, encoding=encoding)
 
 
 def _secure_write_text(path: Path, content: str) -> None:
@@ -381,7 +389,7 @@ def _secure_copy(src: Path, dest: Path) -> None:
     if hasattr(os, "O_NOFOLLOW"):
         flags |= getattr(os, "O_NOFOLLOW")
     fd = os.open(dest, flags, 0o600)
-    with os.fdopen(fd, "wb") as f_dst, src.open("rb") as f_src:
+    with os.fdopen(fd, "wb") as f_dst, _secure_open_read(src, "rb") as f_src:
         shutil.copyfileobj(f_src, f_dst)
     shutil.copystat(src, dest, follow_symlinks=False)
 
@@ -410,7 +418,7 @@ def _link_key(path: Path) -> str:
 def load_link_registry() -> dict:
     if not LINKS_FILE.is_symlink() and LINKS_FILE.is_file():
         try:
-            with LINKS_FILE.open("r", encoding="utf-8") as f:
+            with _secure_open_read(LINKS_FILE, "r", encoding="utf-8") as f:
                 if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                     return {}
                 return json.load(f)
@@ -457,7 +465,7 @@ def get_active_account_uuid():
         if config_json.is_symlink() or not config_json.is_file():
             continue
         try:
-            with config_json.open("r", encoding="utf-8") as f:
+            with _secure_open_read(config_json, "r", encoding="utf-8") as f:
                 if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                     continue
                 data = json.load(f)
@@ -576,7 +584,7 @@ def scan_sessions() -> dict:
                 for file_entry in json_files:
                     f = Path(file_entry.path)
                     try:
-                        with open(file_entry.path, "rb") as f_in:
+                        with _secure_open_read(file_entry.path, "rb") as f_in:
                             if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                                 continue
                             # Bolt Optimization: json.load(open("rb")) is significantly faster
@@ -654,7 +662,7 @@ def scan_cowork_sessions() -> dict:
                 for file_entry in json_files:
                     f = Path(file_entry.path)
                     try:
-                        with open(file_entry.path, "rb") as f_in:
+                        with _secure_open_read(file_entry.path, "rb") as f_in:
                             if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                                 continue
                             # Bolt Optimization: json.load(open("rb")) is significantly faster
@@ -763,7 +771,7 @@ def _new_cli_session_id(transcript_dir: Path) -> str:
 def _read_index_json(path: Path) -> dict:
     if path.is_symlink():
         raise OSError(f"Refusing to read a symlinked session index: {path}")
-    with path.open("r", encoding="utf-8") as f:
+    with _secure_open_read(path, "r", encoding="utf-8") as f:
         if os.fstat(f.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
             raise OSError(f"Refusing to read an unusually large session index: {path}")
         return json.load(f)
@@ -833,7 +841,7 @@ def _replace_text_in_tree(root: Path, replacements: dict[str, str]) -> None:
         if path.suffix.lower() not in text_suffixes:
             continue
         try:
-            with path.open("r", encoding="utf-8") as f:
+            with _secure_open_read(path, "r", encoding="utf-8") as f:
                 if os.fstat(f.fileno()).st_size > 25 * 1024 * 1024:  # Security: 25MB limit
                     continue
                 text = f.read()
@@ -1186,7 +1194,7 @@ def read_session_progress(session: dict, mode: str) -> dict:
     last_ts_raw = None
     try:
         # Security: limit processing of unbounded transcript lines to prevent DoS (OOM/CPU exhaustion)
-        with path.open("r", encoding="utf-8") as f:
+        with _secure_open_read(path, "r", encoding="utf-8") as f:
             if os.fstat(f.fileno()).st_size > 50 * 1024 * 1024:  # Security: 50MB limit to prevent DoS (OOM)
                 return {"found": False}
             for line in f:
