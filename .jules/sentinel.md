@@ -1,4 +1,0 @@
-## 2024-05-24 - Secure Subprocess Call and Result File Read
-**Vulnerability:** In `setup_gui.py`, reading from the output `RESULT_FILE` used standard `Path.read_text`, which is prone to TOCTOU and DoS attacks due to arbitrary large file loading. Additionally, `subprocess` calls in `setup_gui.py` and `session_linker.py` could lack explicit hardening against shell injection.
-**Learning:** Even internal setup mechanisms writing to predetermined local paths need protection from symlink hijacking and memory exhaustion. Explicit `shell=False` must be defined for all subprocess runs.
-**Prevention:** Always use atomic operations (`os.open` with `O_NOFOLLOW` and secure `fdopen`) alongside maximum size limits (`os.fstat(fd).st_size`) before parsing files into memory. Add `shell=False` parameter to explicitly reject implicit OS shelling when constructing subprocess.run/Popen arrays.
