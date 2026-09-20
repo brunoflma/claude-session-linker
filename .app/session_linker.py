@@ -526,6 +526,7 @@ def is_desktop_running(platform: str = _PLATFORM) -> bool:
                 [tasklist_cmd, "/FI", "IMAGENAME eq Claude.exe"],
                 capture_output=True, timeout=5,
                 creationflags=_NO_WINDOW_FLAGS,  # avoid a console flash from pythonw.exe
+                shell=False,
             )
             # Process names are plain ASCII regardless of console codepage, so a
             # raw byte search sidesteps pt-BR tasklist header decoding issues.
@@ -539,6 +540,7 @@ def is_desktop_running(platform: str = _PLATFORM) -> bool:
         out = subprocess.run(
             [pgrep_cmd, "-f", "Claude[.]app/Contents/MacOS/Claude($|[[:space:]])"],
             capture_output=True, timeout=5,
+            shell=False,
         )
         return out.returncode == 0 and bool(out.stdout.strip())
     except Exception:
