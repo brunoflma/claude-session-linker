@@ -409,6 +409,7 @@ class SetupApp(tk.Tk):
                 encoding="utf-8",
                 errors="replace",
                 creationflags=NO_WIN,
+                shell=False,
             )
             if proc.stdout is not None:
                 for line in proc.stdout:
@@ -421,7 +422,15 @@ class SetupApp(tk.Tk):
 
         msg = ""
         try:
-            raw = RESULT_FILE.read_text(encoding="utf-8-sig").lstrip("\ufeff")
+            flags = os.O_RDONLY
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= getattr(os, "O_NOFOLLOW")
+            fd = os.open(RESULT_FILE, flags)
+            with os.fdopen(fd, "r", encoding="utf-8-sig") as f:
+                if os.fstat(f.fileno()).st_size > 1 * 1024 * 1024:  # Security: 1MB limit
+                    raise OSError("File too large")
+                raw = f.read().lstrip("\ufeff")
+
             if raw.startswith("STATUS="):
                 first, _, rest = raw.partition("\n")
                 try:
