@@ -1,0 +1,36 @@
+name: Publish release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+  publish:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.14'
+      - name: Check tag and version
+        run: python scripts/check_version.py --tag "$RELEASE_TAG"
+      - name: Build reproducible release artifacts
+        run: python scripts/release_bundle.py --ref "$RELEASE_TAG"
+      - name: Stage draft, verify hashes, publish and verify downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/publish_release.py --tag "$RELEASE_TAG"

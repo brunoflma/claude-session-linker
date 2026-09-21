@@ -944,8 +944,18 @@ class MacDesktopDetectionTests(unittest.TestCase):
             self.assertFalse(session_linker.is_desktop_running(platform="darwin"))
 
     def test_get_system_executable_posix_prefers_usr_bin(self):
-        path = session_linker._get_system_executable("pgrep", platform="darwin")
-        self.assertTrue(path == "/usr/bin/pgrep" or path.endswith("/pgrep") or path == "pgrep")
+        with patch("os.path.exists", side_effect=lambda path: path == "/usr/bin/pgrep"):
+            self.assertEqual(session_linker._get_system_executable("pgrep", platform="darwin"), "/usr/bin/pgrep")
+
+    def test_missing_posix_executable_does_not_search_path(self):
+        with patch("os.path.exists", return_value=False):
+            self.assertEqual(session_linker._get_system_executable("pgrep", platform="darwin"), "/usr/bin/pgrep")
+
+    def test_executable_requires_a_basename_on_both_platforms(self):
+        for platform in ("win32", "darwin"):
+            for name in ("", ".", "..", "../sh", r"..\cmd.exe", "/usr/bin/sh", r"C:\Windows\cmd.exe", "C:cmd.exe", "bin/sh", "cmd.exe\x00"):
+                with self.subTest(platform=platform, name=name), self.assertRaises(ValueError):
+                    session_linker._get_system_executable(name, platform=platform)
 
     def test_get_system_executable_path_traversal(self):
         with self.assertRaises(ValueError):
@@ -960,39 +970,21 @@ class MacDesktopDetectionTests(unittest.TestCase):
 
 
 class BackupSecurityTests(unittest.TestCase):
-    def test_backup_permissions_posix(self):
-        # We patch os.name directly around backup_dir_tree execution to simulate posix
+    def test_backup_creation_uses_restrictive_flags(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            session_linker.BACKUPS_DIR = tmp_path
-
             src = tmp_path / "src"
             src.mkdir()
             (src / "test.txt").write_text("hello", encoding="utf-8")
-
-            real_fd, real_path = tempfile.mkstemp()
-            os.close(real_fd)
-            os.unlink(real_path) # We must delete it because O_EXCL will fail if it exists
-
-            with patch("os.name", "posix"):
-                real_os_open = os.open
-
-                def mock_os_open(path, flags, mode=0o777, *args, **kwargs):
-                    if str(path).endswith(".zip"):
-                        # intercept the zip file creation
-                        return real_os_open(real_path, flags, mode, *args, **kwargs)
-                    return real_os_open(path, flags, mode, *args, **kwargs)
-
-                with patch("os.open", side_effect=mock_os_open) as mock_open:
-                    out = session_linker.backup_dir_tree(src, "testlabel")
-
-                    expected_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                    if hasattr(os, "O_NOFOLLOW"):
-                        expected_flags |= getattr(os, "O_NOFOLLOW")
-                    mock_open.assert_any_call(out, expected_flags, 0o600)
-
-            if os.path.exists(real_path):
-                os.unlink(real_path)
+            with patch.object(session_linker, "BACKUPS_DIR", tmp_path), patch("os.open", wraps=os.open) as mock_open:
+                out = session_linker.backup_dir_tree(src, "testlabel")
+                expected_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+                mock_open.assert_any_call(out, expected_flags, 0o600)
+            with zipfile.ZipFile(out) as archive:
+                self.assertEqual(archive.namelist(), ["src/test.txt"])
+                self.assertEqual(archive.read("src/test.txt"), b"hello")
+            if os.name == "posix":
+                self.assertEqual(out.stat().st_mode & 0o777, 0o600)
 
 class MacDiscoveryTests(unittest.TestCase):
     def test_rejects_unsupported_platform(self):

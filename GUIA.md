@@ -2,17 +2,17 @@
 
 As formas de instalar, iniciar, fechar o Claude Desktop e recuperar o ambiente são diferentes em cada sistema operacional. Use apenas o guia correspondente ao computador onde o Session Linker será executado.
 
-Comece pelo [código atual da branch master](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip). Esse ZIP contém os iniciadores dos dois sistemas; extraia todo o conteúdo, inclusive a pasta `.app`. Confira no [README](README.md#comece-pelo-seu-sistema) a distinção entre o código atual e os pacotes de releases.
+Comece pela [última release](https://github.com/brunoflma/claude-session-linker/releases/latest) e escolha o ZIP do seu sistema. Extraia todo o conteúdo, inclusive a pasta `.app`. Cada pacote inclui a versão e o commit de origem em `RELEASE.json`.
 
 ## Windows
 
-Use o iniciador de setup `.vbs` do código atual. Se optar por uma release específica, escolha o pacote com sufixo `-windows.zip`.
+Escolha o pacote com sufixo `-windows.zip` e use o iniciador de setup `.vbs`.
 
 [Abrir o guia visual para Windows](https://brunoflma.github.io/claude-session-linker/install-windows.html) · [Referência em Markdown](GUIA-WINDOWS.md)
 
 ## macOS
 
-Use o iniciador de setup `.command` do código atual. Se optar por uma release específica, escolha o pacote com sufixo `-macos.zip`.
+Escolha o pacote com sufixo `-macos.zip` e use o iniciador de setup `.command`.
 
 [Abrir o guia visual para macOS](https://brunoflma.github.io/claude-session-linker/install-macos.html) · [Referência em Markdown](GUIA-MACOS.md)
 

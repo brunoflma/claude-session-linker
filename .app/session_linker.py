@@ -50,6 +50,8 @@ from __future__ import annotations
 
 import json
 import os
+import ntpath
+import posixpath
 import re
 import shutil
 import subprocess
@@ -483,8 +485,8 @@ _NO_WINDOW_FLAGS = 0x08000000 if sys.platform.startswith("win") else 0  # CREATE
 def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
     """Securely resolves the path to a system executable without relying on
     PATH or SystemRoot environment variables, preventing binary planting."""
-    if ".." in Path(name).parts:
-        raise ValueError(f"Invalid path traversal in executable name: {name}")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or name in (".", ".."):
+        raise ValueError(f"Expected a system executable basename: {name}")
     if platform.startswith("win"):
         try:
             import ctypes
@@ -492,30 +494,20 @@ def _get_system_executable(name: str, platform: str = _PLATFORM) -> str:
             length = ctypes.windll.kernel32.GetSystemDirectoryW(buf, 260)
             if length > 0:
                 base_dir = buf[:length]
-                candidate = os.path.normpath(os.path.join(base_dir, name))
-                if candidate.startswith(base_dir + os.sep) or candidate == base_dir:
-                    return candidate
+                return ntpath.join(base_dir, name)
         except Exception:
             pass
 
-        fallback_base = r"C:\Windows\System32"
-        candidate = os.path.normpath(os.path.join(fallback_base, name))
-        if candidate.startswith(fallback_base + os.sep) or candidate == fallback_base:
-            return candidate
-        return os.path.join(fallback_base, "cmd.exe")
+        return ntpath.join(r"C:\Windows\System32", name)
 
     for directory in ("/usr/bin", "/bin", "/usr/sbin", "/sbin"):
-        candidate = os.path.normpath(os.path.join(directory, name))
-        if (candidate.startswith(directory + os.sep) or candidate == directory) and os.path.exists(candidate):
+        candidate = posixpath.join(directory, name)
+        if os.path.exists(candidate):
             return candidate
 
     # Fail closed on systems without the expected binary instead of consulting
     # a user-controlled PATH (the subprocess call will safely fail).
-    safe_fallback = "/usr/bin"
-    candidate = os.path.normpath(os.path.join(safe_fallback, name))
-    if candidate.startswith(safe_fallback + os.sep) or candidate == safe_fallback:
-        return candidate
-    return "/usr/bin/false"
+    return posixpath.join("/usr/bin", name)
 
 
 def is_desktop_running(platform: str = _PLATFORM) -> bool:

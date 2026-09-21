@@ -17,3 +17,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Reproducible release output (never use a working-tree ZIP as a release)
+/release-artifacts/

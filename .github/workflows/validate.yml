@@ -1,0 +1,51 @@
+name: Validate application
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  application:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            python: '3.10'
+          - os: windows-2025
+            python: '3.14'
+          - os: macos-15-intel
+            python: '3.14'
+          - os: macos-15
+            python: '3.14'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CLAUDE_SESSION_LINKER_CLAUDE_DIR: ${{ github.workspace }}/release-artifacts/csl-synthetic-profile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install pinned application dependencies
+        run: python -m pip install -r .app/requirements.txt
+      - name: Validate version progression
+        run: python scripts/check_version.py
+      - name: Test application logic
+        run: python -m unittest discover -s .app -p "test_*.py"
+      - name: Test release integrity and publication gates
+        run: python -m unittest discover -s scripts -p "test_*.py"
+      - name: Check Python syntax
+        run: python -m compileall -q .app/session_linker.py .app/setup_gui.py scripts
+      - name: Build and verify OS packages from this commit
+        run: python scripts/release_bundle.py --ref HEAD
+      - name: Open the extracted package with synthetic profiles
+        run: python scripts/smoke_package.py --ref HEAD --gui
+      - name: Check whitespace
+        run: git diff --check
