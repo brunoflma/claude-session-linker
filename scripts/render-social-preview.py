@@ -24,7 +24,8 @@ def text(x, y, value, size, color, weight=500):
 
 box((23, 23, 1257, 617), None, '#2c4c59', 20)
 box((66, 65, 112, 111), '#45dfff', radius=10)
-text(74, 61, '↔', 34, '#0b1118', 650)
+for points in [((76, 81), (103, 81)), ((97, 75), (103, 81), (97, 87)), ((102, 96), (76, 96)), ((82, 90), (76, 96), (82, 102))]:
+    draw.line([(x * scale, y * scale) for x, y in points], fill='#0b1118', width=2 * scale)
 text(130, 69, 'Claude Session Linker', 30, '#eef3f5', 800)
 text(67, 194, 'Sua conversa.', 68, '#eef3f5', 800)
 text(67, 281, 'Continua daqui.', 68, '#c6ff5e', 800)
