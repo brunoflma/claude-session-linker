@@ -1,0 +1,30 @@
+name: Conte sua experiência
+description: Sugira uma melhoria ou relate uma dificuldade com o Session Linker.
+title: "[Experiência] "
+body:
+  - type: markdown
+    attributes:
+      value: "Use exemplos fictícios. Não envie transcripts, backups, credenciais, rótulos ou identificadores de contas."
+  - type: dropdown
+    id: system
+    attributes:
+      label: Sistema operacional
+      options: [Windows, macOS]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão do Linker ou commit utilizado
+  - type: dropdown
+    id: session
+    attributes:
+      label: Tipo de sessão
+      options: [Code, Cowork, Instalação]
+  - type: textarea
+    id: experience
+    attributes:
+      label: O que você quer compartilhar?
+      description: "Descreva os passos, o resultado esperado e o que ocorreu, ou sua sugestão de melhoria."
+    validations:
+      required: true

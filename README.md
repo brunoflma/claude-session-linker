@@ -6,7 +6,9 @@
 
 Uma interface local para organizar as conversas das abas **Code** e **Cowork**. Você escolhe a sessão e a conta de destino, compara as cópias disponíveis e mantém backups antes das alterações.
 
-**[Baixar a versão mais recente ↗](https://github.com/brunoflma/claude-session-linker/releases/latest)** · [Windows](GUIA-WINDOWS.md) · [macOS](GUIA-MACOS.md) · [Todos os guias](GUIA.md)
+**[Conheça a página e explore os cenários ↗](https://brunoflma.github.io/claude-session-linker/)** · [Instalar com ajuda de IA](https://brunoflma.github.io/claude-session-linker/#instalar) · [Baixar o código atual](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip) · [Windows](GUIA-WINDOWS.md) · [macOS](GUIA-MACOS.md)
+
+Se o projeto ajudar no seu fluxo, use **Star** no topo do repositório para salvá-lo e demonstrar apoio. Você também pode [contar sua experiência](https://github.com/brunoflma/claude-session-linker/issues/new?template=experiencia.yml). A estrela é opcional.
 
 ## Quando ele ajuda
 
@@ -19,14 +21,18 @@ Uma interface local para organizar as conversas das abas **Code** e **Cowork**. 
 
 ## Comece pelo seu sistema
 
-| Sistema | Arquivo na release | Passo a passo |
+| Sistema | Setup no ZIP do código atual | Passo a passo |
 | :--- | :--- | :--- |
-| Windows 10/11 | `claude-session-linker-<versão>-windows.zip` | [Guia para Windows](GUIA-WINDOWS.md) |
-| macOS | `claude-session-linker-<versão>-macos.zip` | [Guia para macOS](GUIA-MACOS.md) |
+| Windows 10/11 | `00 - Setup Claude Session Linker.vbs` | [Guia para Windows](GUIA-WINDOWS.md) |
+| macOS | `00 - Setup Claude Session Linker.command` | [Guia para macOS](GUIA-MACOS.md) |
 
-1. Baixe o ZIP na [release mais recente](https://github.com/brunoflma/claude-session-linker/releases/latest).
+1. Baixe o [ZIP do código atual da branch master](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip).
 2. Extraia o pacote em uma pasta permanente.
 3. Siga o guia do seu sistema para instalar e abrir a ferramenta.
+
+**Download conferido em 20/09/2026:** os pacotes da release `v2.0.0` antecedem correções de leitura de arquivos e operações locais já incorporadas em `master`. O ZIP do código atual inclui essas alterações. Os [pacotes de releases](https://github.com/brunoflma/claude-session-linker/releases) permanecem disponíveis como versões específicas; confira as notas e a data ao escolher.
+
+Para preparar o ambiente com um agente, [copie o prompt de instalação](https://brunoflma.github.io/claude-session-linker/#instalar). O prompt separa instalar a ferramenta de autorizar operações sobre conversas reais.
 
 ## O fluxo de uso
 

@@ -15,8 +15,8 @@ O primeiro setup precisa de acesso à internet para baixar as dependências Pyth
 
 ## 2. Baixar e instalar
 
-1. Abra a [release mais recente](https://github.com/brunoflma/claude-session-linker/releases/latest).
-2. Baixe `claude-session-linker-<versão>-windows.zip`.
+1. Abra o [repositório oficial](https://github.com/brunoflma/claude-session-linker).
+2. Baixe o [ZIP do código atual](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip). Se escolher uma release específica, use o pacote com sufixo `-windows.zip` e confira as notas e a data.
 3. Extraia todo o conteúdo para uma pasta permanente, por exemplo:
 
    ```text
@@ -125,7 +125,7 @@ Confirme que o ZIP foi extraído por completo. Nas propriedades do ZIP ou do arq
 
 ## 9. Atualizar
 
-Baixe o novo ZIP do Windows, extraia em uma pasta nova e execute `00 - Setup Claude Session Linker.vbs`. Se quiser preservar backups antigos, copie somente `.app\backups` da instalação anterior. Não reutilize `.app\venv`, `.app\logs` nem arquivos de dados de contas e sessões.
+Baixe o código atual ou o pacote Windows da versão escolhida, extraia em uma pasta nova e execute `00 - Setup Claude Session Linker.vbs`. Se quiser preservar backups antigos, copie somente `.app\backups` da instalação anterior. Não reutilize `.app\venv`, `.app\logs` nem arquivos de dados de contas e sessões.
 
 Se o problema continuar, abra uma [issue](https://github.com/brunoflma/claude-session-linker/issues) informando a versão do Windows e o erro observado. Antes de anexar `setup-result.txt` ou `session-linker-error.log`, remova caminhos, nomes de conta e qualquer conteúdo de sessão.
 
