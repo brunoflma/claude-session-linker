@@ -944,6 +944,11 @@ class MacDesktopDetectionTests(unittest.TestCase):
             mock_run.return_value = Mock(returncode=1, stdout=b"")
             self.assertFalse(session_linker.is_desktop_running(platform="darwin"))
 
+    def test_unavailable_process_query_preserves_existing_failure_handling(self):
+        for platform in ("win32", "darwin"):
+            with self.subTest(platform=platform), patch("subprocess.run", side_effect=FileNotFoundError):
+                self.assertFalse(session_linker.is_desktop_running(platform=platform))
+
     def test_get_system_executable_posix_prefers_usr_bin(self):
         with patch("os.path.exists", side_effect=lambda path: path == "/usr/bin/pgrep"):
             self.assertEqual(session_linker._get_system_executable("pgrep", platform="darwin"), "/usr/bin/pgrep")
