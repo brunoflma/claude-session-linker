@@ -11,6 +11,7 @@ Esta versão reúne as correções e melhorias incorporadas depois da 2.0.0 e es
 - Ajustes de estados de carregamento, botões e mensagens da interface.
 - Resolução de executáveis do macOS independente das convenções de caminhos do Windows, com validação de nomes e sem consulta ao PATH do usuário.
 - Teste de backup exercitando a criação real do ZIP e as permissões correspondentes, sem simular outro sistema por meio de os.name.
+- Cenário de descoberta de perfis com datas de arquivos e pastas determinísticas em todos os sistemas e versões de Python testados.
 
 ### Distribuição
 

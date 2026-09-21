@@ -237,10 +237,11 @@ class SessionLinkerLogicTests(unittest.TestCase):
             custom_config = custom_root / "config.json"
             default_config.write_text("{}", encoding="utf-8")
             custom_config.write_text("{}", encoding="utf-8")
-            old_ts = time.time() - 300
-            new_ts = time.time()
-            os.utime(default_config, (old_ts, old_ts))
-            os.utime(custom_config, (new_ts, new_ts))
+            # Discovery considers both file and directory activity. Set every
+            # probe explicitly instead of mixing NTFS timestamps with time.time().
+            for root, stamp in ((default_root, 1_700_000_000), (custom_root, 1_700_000_300)):
+                for probe in (root / "config.json", root / "claude-code-sessions", root):
+                    os.utime(probe, (stamp, stamp))
 
             module = load_session_linker_with_env(appdata, localappdata)
 
