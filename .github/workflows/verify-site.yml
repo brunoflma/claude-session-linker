@@ -15,5 +15,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - run: node --check docs/assets/site.js
+      - run: |
+          node --check docs/assets/site.js
+          node --check docs/assets/guide.js
       - run: python scripts/verify-site.py

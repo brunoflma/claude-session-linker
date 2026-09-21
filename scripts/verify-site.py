@@ -22,6 +22,8 @@ class Page(HTMLParser):
                 self.links.append(values[key])
         if 'aria-controls' in values:
             self.targets.append(values['aria-controls'])
+        if 'data-copy' in values:
+            self.targets.append(values['data-copy'])
         if tag == 'a' and 'data-github' in values:
             self.github_links.append(values['href'])
         if tag == 'pre' and values.get('id') == 'agent-prompt':
@@ -37,6 +39,23 @@ class Page(HTMLParser):
 
 
 def main():
+    pages = {}
+    for name in ['index.html', 'install-windows.html', 'install-macos.html']:
+        item = Page()
+        item.feed((ROOT / 'docs' / name).read_text(encoding='utf-8'))
+        pages[name] = item
+    for name, item in pages.items():
+        assert len(item.ids) == len(set(item.ids)), f'Duplicate IDs in {name}'
+        assert all(target in item.ids for target in item.targets), f'Missing control in {name}'
+        for url in item.links:
+            if url.startswith(('https://', 'http://')):
+                continue
+            path, _, anchor = url.partition('#')
+            path = path.split('?')[0]
+            if path:
+                assert (ROOT / 'docs' / path).is_file(), (name, url)
+            if anchor:
+                assert anchor in pages[path or name].ids, (name, url)
     page = Page()
     page.feed((ROOT / 'docs/index.html').read_text(encoding='utf-8'))
     assert len(page.ids) == len(set(page.ids)), 'Duplicate IDs'

@@ -8,13 +8,13 @@ Comece pelo [código atual da branch master](https://github.com/brunoflma/claude
 
 Use o iniciador de setup `.vbs` do código atual. Se optar por uma release específica, escolha o pacote com sufixo `-windows.zip`.
 
-[Abrir o Guia do Claude Session Linker para Windows](GUIA-WINDOWS.md)
+[Abrir o guia visual para Windows](https://brunoflma.github.io/claude-session-linker/install-windows.html) · [Referência em Markdown](GUIA-WINDOWS.md)
 
 ## macOS
 
 Use o iniciador de setup `.command` do código atual. Se optar por uma release específica, escolha o pacote com sufixo `-macos.zip`.
 
-[Abrir o Guia do Claude Session Linker para macOS](GUIA-MACOS.md)
+[Abrir o guia visual para macOS](https://brunoflma.github.io/claude-session-linker/install-macos.html) · [Referência em Markdown](GUIA-MACOS.md)
 
 ## Informações comuns
 

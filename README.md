@@ -6,7 +6,7 @@
 
 Uma interface local para organizar as conversas das abas **Code** e **Cowork**. Você escolhe a sessão e a conta de destino, compara as cópias disponíveis e mantém backups antes das alterações.
 
-**[Conheça a página e explore os cenários ↗](https://brunoflma.github.io/claude-session-linker/)** · [Instalar com ajuda de IA](https://brunoflma.github.io/claude-session-linker/#instalar) · [Baixar o código atual](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip) · [Windows](GUIA-WINDOWS.md) · [macOS](GUIA-MACOS.md)
+**[Conheça a página e explore os cenários ↗](https://brunoflma.github.io/claude-session-linker/)** · [Instalar com ajuda de IA](https://brunoflma.github.io/claude-session-linker/#instalar) · [Baixar o código atual](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip) · [Guia Windows](https://brunoflma.github.io/claude-session-linker/install-windows.html) · [Guia macOS](https://brunoflma.github.io/claude-session-linker/install-macos.html)
 
 Se o projeto ajudar no seu fluxo, use **Star** no topo do repositório para salvá-lo e demonstrar apoio. Você também pode [contar sua experiência](https://github.com/brunoflma/claude-session-linker/issues/new?template=experiencia.yml). A estrela é opcional.
 
@@ -23,8 +23,8 @@ Se o projeto ajudar no seu fluxo, use **Star** no topo do repositório para salv
 
 | Sistema | Setup no ZIP do código atual | Passo a passo |
 | :--- | :--- | :--- |
-| Windows 10/11 | `00 - Setup Claude Session Linker.vbs` | [Guia para Windows](GUIA-WINDOWS.md) |
-| macOS | `00 - Setup Claude Session Linker.command` | [Guia para macOS](GUIA-MACOS.md) |
+| Windows 10/11 | `00 - Setup Claude Session Linker.vbs` | [Guia para Windows](https://brunoflma.github.io/claude-session-linker/install-windows.html) |
+| macOS | `00 - Setup Claude Session Linker.command` | [Guia para macOS](https://brunoflma.github.io/claude-session-linker/install-macos.html) |
 
 1. Baixe o [ZIP do código atual da branch master](https://github.com/brunoflma/claude-session-linker/archive/refs/heads/master.zip).
 2. Extraia o pacote em uma pasta permanente.
