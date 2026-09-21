@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import subprocess
+import time
 import urllib.request
 from pathlib import Path
 from release_bundle import ROOT, git, sha256, verify_bundle, version_tuple
@@ -32,6 +33,17 @@ def release_records():
 
 def find_release(tag):
     return next((release for release in release_records() if release['tag_name'] == tag), None)
+
+
+def wait_for_created_release(tag):
+    """GitHub's release list can briefly lag a successful draft creation."""
+    for attempt in range(8):
+        release = find_release(tag)
+        if release is not None:
+            return release
+        if attempt < 7:
+            time.sleep(2)
+    raise RuntimeError(f'Draft {tag} was created but is not visible yet; safely rerun the failed job')
 
 
 def verify_assets(release, expected, require_all=True):
@@ -75,7 +87,7 @@ def publish(tag, directory, verify_only=False):
     else:
         if not release:
             gh('release', 'create', tag, '--verify-tag', '--draft', '--title', f'Claude Session Linker {manifest["version"]}', '--notes-file', '-', input=notes_for(tag).encode())
-            release = find_release(tag)
+            release = wait_for_created_release(tag)
         verify_assets(release, expected, require_all=False)
         existing = {a['name'] for a in release['assets']}
         for name in expected:

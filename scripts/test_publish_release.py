@@ -51,6 +51,7 @@ class PublicationFlowTests(unittest.TestCase):
         self.api = self.stack.enter_context(patch.object(publisher, 'api'))
         self.records = self.stack.enter_context(patch.object(publisher, 'release_records', return_value=[]))
         self.notes = self.stack.enter_context(patch.object(publisher, 'notes_for', return_value='Release notes\n'))
+        self.sleep = self.stack.enter_context(patch.object(publisher.time, 'sleep'))
         self.download = self.stack.enter_context(patch.object(publisher.urllib.request, 'urlopen', side_effect=lambda *a, **kw: io.BytesIO(b'package')))
         self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
 
@@ -76,6 +77,22 @@ class PublicationFlowTests(unittest.TestCase):
         publisher.publish(self.tag, self.directory)
         self.gh.assert_called_once_with('release', 'upload', self.tag, str(self.directory / 'package.zip'))
         self.notes.assert_not_called()
+
+    def test_new_draft_waits_for_release_list_visibility(self):
+        self.find.side_effect = [None, None, self.empty_draft, self.draft, self.published]
+        publisher.publish(self.tag, self.directory)
+        self.sleep.assert_called_once_with(2)
+        self.assertEqual([call.args[1] for call in self.gh.call_args_list], ['create', 'upload'])
+
+    def test_invisible_draft_times_out_without_upload_or_publication(self):
+        self.find.return_value = None
+        with self.assertRaisesRegex(RuntimeError, 'safely rerun'):
+            publisher.publish(self.tag, self.directory)
+        self.assertEqual(self.find.call_count, 9)
+        self.assertEqual(self.sleep.call_count, 7)
+        self.gh.assert_called_once()
+        self.assertEqual(self.gh.call_args.args[1], 'create')
+        self.api.assert_not_called()
 
     def test_mismatched_draft_is_not_overwritten(self):
         wrong = copy.deepcopy(self.draft)

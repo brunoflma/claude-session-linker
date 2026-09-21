@@ -66,6 +66,6 @@ O último comando exige GitHub CLI autenticado e apenas verifica uma release já
 
 ## Falha ou repetição de execução
 
-Se a validação falhar, a publicação não é executada. Corrija a atualização na branch e valide novamente antes de criar uma nova tag. Se a falha ocorrer durante o upload de um rascunho, é possível repetir o workflow: ele verifica os assets existentes e envia somente os ausentes. Um asset divergente exige investigação; o script não usa sobrescrita.
+Se a validação falhar, a publicação não é executada. Corrija a atualização na branch e valide novamente antes de criar uma nova tag. Depois de criar um rascunho, o script aguarda brevemente sua visibilidade na API do GitHub. Se a falha ocorrer durante o upload de um rascunho, é possível repetir o workflow: ele verifica os assets existentes e envia somente os ausentes. Um asset divergente exige investigação; o script não usa sobrescrita.
 
 Se a release já foi publicada, a repetição apenas verifica sua integridade. Para corrigir código ou pacotes publicados, faça uma nova versão. Para voltar a uma versão anterior, baixe o pacote histórico em uma pasta separada e preserve a instalação atual e os backups. Não restaure dados de conversas automaticamente.
