@@ -35,15 +35,18 @@ def main():
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             module.CLAUDE_PROJECTS_DIR = base / 'synthetic-projects'
-            assert module.APP_VERSION == manifest['version']
-            assert module.scan_sessions() == {} and module.scan_cowork_sessions() == {}
+            if module.APP_VERSION != manifest['version']:
+                raise AssertionError(f"Expected APP_VERSION {manifest['version']}, got {module.APP_VERSION}")
+            if not (module.scan_sessions() == {} and module.scan_cowork_sessions() == {}):
+                raise AssertionError("Expected empty scan_sessions and scan_cowork_sessions")
             if args.gui:
                 app = module.SessionLinkerApp()
                 try:
                     app.withdraw()
                     app.update_idletasks()
                     app.update()
-                    assert app.winfo_exists()
+                    if not app.winfo_exists():
+                        raise AssertionError("Application window does not exist")
                 finally:
                     app.destroy()
     print(json.dumps({'platform': platform, 'version': manifest['version'], 'commit': manifest['commit'], 'extracted_import': True, 'gui_checked': args.gui, 'real_profiles_used': False}))
