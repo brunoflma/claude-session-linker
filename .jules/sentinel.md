@@ -1,4 +1,0 @@
-## 2026-09-21 - [Secure `shutil.copytree` implementation against TOCTOU]
-**Vulnerability:** `shutil.copytree` was used for copying directories without protecting individual file writes against Time-of-Check to Time-of-Use (TOCTOU) and symlink hijacking vulnerabilities.
-**Learning:** Reimplementing complex directory tree algorithms like `shutil.copytree` correctly (with error handling, `dirs_exist_ok`, and `symlinks` logic) is highly error-prone. It is much cleaner and safer to inject a secure file copier (e.g. `_secure_copy`) into the standard library's `copytree` via the `copy_function` argument.
-**Prevention:** Instead of rolling custom directory copiers, use `shutil.copytree(..., copy_function=_secure_copy)` to ensure atomic writes while leveraging Python's tested semantics for directories and symlinks. Ensure the custom `copy_function` supports `str` and `pathlib.Path` interchangeably.
