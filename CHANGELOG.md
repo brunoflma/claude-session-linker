@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.1]
+
+### Aplicativo
+
+- Fix TOCTOU vulnerability when duplicating session directories in `.app/session_linker.py` by a local attacker via a symlink replacement race condition.
+
 ## [2.1.0] - 2026-09-21
 
 Esta versão reúne as correções e melhorias incorporadas depois da 2.0.0 e estabelece a publicação verificável de pacotes para Windows e macOS.
