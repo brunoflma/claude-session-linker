@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.1] - 2026-09-21
+
+### Security
+- Mitigates Time-of-Check to Time-of-Use (TOCTOU) file write vulnerabilities during directory copying by injecting an atomic file copy function into `shutil.copytree` invocations in the backend.
+
 ## [2.1.0] - 2026-09-21
 
 Esta versão reúne as correções e melhorias incorporadas depois da 2.0.0 e estabelece a publicação verificável de pacotes para Windows e macOS.

@@ -382,18 +382,20 @@ def _secure_write_text(path: Path, content: str) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(content)
 
-def _secure_copy(src: Path, dest: Path) -> None:
-    if ".." in src.parts or ".." in dest.parts:
+def _secure_copy(src: Path | str, dest: Path | str) -> None:
+    src_path = Path(src)
+    dest_path = Path(dest)
+    if ".." in src_path.parts or ".." in dest_path.parts:
         raise Exception("Invalid file path")
-    if src.is_symlink() or dest.is_symlink():
+    if src_path.is_symlink() or dest_path.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
     if hasattr(os, "O_NOFOLLOW"):
         flags |= getattr(os, "O_NOFOLLOW")
-    fd = os.open(dest, flags, 0o600)
-    with os.fdopen(fd, "wb") as f_dst, _secure_open_read(src, "rb") as f_src:
+    fd = os.open(dest_path, flags, 0o600)
+    with os.fdopen(fd, "wb") as f_dst, _secure_open_read(src_path, "rb") as f_src:
         shutil.copyfileobj(f_src, f_dst)
-    shutil.copystat(src, dest, follow_symlinks=False)
+    shutil.copystat(src_path, dest_path, follow_symlinks=False)
 
 
 def save_labels(labels: dict) -> None:
@@ -880,7 +882,11 @@ def normalize_cowork_session_copy(
         raise OSError("Refusing to move or copy a symlinked project directory")
     if old_project.exists() and old_project != new_project:
         if new_project.exists():
-            shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+            shutil.copytree(
+                old_project, new_project,
+                symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True,
+                copy_function=_secure_copy,
+            )
             _secure_rmtree(old_project)
         else:
             old_project.rename(new_project)
@@ -1064,6 +1070,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
             shutil.copytree(
                 session["data_dir"], dest_data_dir,
                 symlinks=True, ignore_dangling_symlinks=True,
+                copy_function=_secure_copy,
             )
         normalize_cowork_session_copy(
             session["path"],
