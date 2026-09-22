@@ -20,3 +20,6 @@ __pycache__/
 
 # Reproducible release output (never use a working-tree ZIP as a release)
 /release-artifacts/
+
+# Jules agent workspace
+.jules/
