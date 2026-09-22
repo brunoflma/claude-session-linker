@@ -382,7 +382,9 @@ def _secure_write_text(path: Path, content: str) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(content)
 
-def _secure_copy(src: Path, dest: Path) -> None:
+def _secure_copy(src: Path | str, dest: Path | str) -> None:
+    src = Path(src)
+    dest = Path(dest)
     if ".." in src.parts or ".." in dest.parts:
         raise Exception("Invalid file path")
     if src.is_symlink() or dest.is_symlink():
@@ -880,7 +882,7 @@ def normalize_cowork_session_copy(
         raise OSError("Refusing to move or copy a symlinked project directory")
     if old_project.exists() and old_project != new_project:
         if new_project.exists():
-            shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True)
+            shutil.copytree(old_project, new_project, symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True, copy_function=_secure_copy)
             _secure_rmtree(old_project)
         else:
             old_project.rename(new_project)
@@ -1064,6 +1066,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
             shutil.copytree(
                 session["data_dir"], dest_data_dir,
                 symlinks=True, ignore_dangling_symlinks=True,
+                copy_function=_secure_copy,
             )
         normalize_cowork_session_copy(
             session["path"],
