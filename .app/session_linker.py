@@ -1989,8 +1989,9 @@ class SessionLinkerApp(ctk.CTk):
                 status.configure(text="Claude Desktop está aberto. Feche pela bandeja do sistema e clique novamente para confirmar.", text_color=YELLOW)
                 if not getattr(dialog, "_confirmed_running", False):
                     dialog._confirmed_running = True
+                    remove_btn.configure(text="Remover mesmo assim")
                     return
-            remove_btn.configure(state="disabled")
+            remove_btn.configure(state="disabled", text="Removendo...")
             cancel_btn.configure(state="disabled")
             status.configure(text="Removendo e criando backup...", text_color=TXT2)
 
@@ -2010,7 +2011,7 @@ class SessionLinkerApp(ctk.CTk):
                         cancel_btn.pack(side="right", pady=8)
                         self.refresh()
                     else:
-                        remove_btn.configure(state="normal")
+                        remove_btn.configure(state="normal", text="Remover")
                         cancel_btn.configure(state="normal")
 
                 self.after(0, apply)
@@ -2122,13 +2123,14 @@ class SessionLinkerApp(ctk.CTk):
                 )
                 if not getattr(dialog, "_confirmed_running", False):
                     dialog._confirmed_running = True
+                    link_btn.configure(text="Vincular mesmo assim")
                     return
 
             # Cowork sessions can carry MBs of uploads/outputs, so the copy
             # runs off the UI thread -- Code sessions are tiny JSON files
             # and finish before the "Vinculando…" state is even noticeable.
             show_status("Vinculando…", TXT2, SURF2, BRD)
-            link_btn.configure(state="disabled")
+            link_btn.configure(state="disabled", text="Vinculando...")
             close_btn.configure(state="disabled")
             for button in row_buttons.values():
                 button.configure(state="disabled")
@@ -2165,7 +2167,7 @@ class SessionLinkerApp(ctk.CTk):
                         close_btn.pack(side="right", pady=8)
                         self.refresh()
                     else:
-                        link_btn.configure(state="normal")
+                        link_btn.configure(state="normal", text="Vincular")
                         close_btn.configure(state="normal")
                         for button in row_buttons.values():
                             button.configure(state="normal")
@@ -2456,6 +2458,7 @@ class SessionLinkerApp(ctk.CTk):
                 save_labels(self.labels)
                 dialog.destroy()
                 self.refresh()
+                self._toast("Conta renomeada com sucesso!")
             else:
                 status.configure(text="Informe um nome para salvar.")
                 entry.focus_set()
