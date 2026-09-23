@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.2] - 2026-09-22
+
+### Performance
+- Improved session loading performance by avoiding O(N) `pathlib.Path` instantiations during deep directory traversal, speeding up operations on machines with thousands of Claude Code project instances.
+
 ## [2.1.1] - 2026-09-21
 
 ### Security

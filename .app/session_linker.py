@@ -1145,13 +1145,27 @@ def find_transcript_path(cli_session_id: str):
         return None
     # Bolt Optimization: Cache the glob results for a short period to prevent
     # O(N) disk I/O scans when querying the status of many sessions in a loop.
+    # Prevent O(N) Path object instantiations by using direct os.scandir for
+    # the known, shallow project directory structure (~/.claude/projects/<hash>/<uuid>.jsonl).
     global _TRANSCRIPT_CACHE, _TRANSCRIPT_CACHE_TIME
     now = time.time()
     if _TRANSCRIPT_CACHE is None or now - _TRANSCRIPT_CACHE_TIME > 2.0:
-        _TRANSCRIPT_CACHE = {
-            p.stem: p for p in _safe_walk_files(CLAUDE_PROJECTS_DIR)
-            if p.suffix.lower() == ".jsonl"
-        }
+        _TRANSCRIPT_CACHE = {}
+        if not CLAUDE_PROJECTS_DIR.is_symlink() and CLAUDE_PROJECTS_DIR.is_dir():
+            try:
+                with os.scandir(CLAUDE_PROJECTS_DIR) as root_it:
+                    for proj_dir in root_it:
+                        if proj_dir.is_symlink() or not proj_dir.is_dir(follow_symlinks=False):
+                            continue
+                        try:
+                            with os.scandir(proj_dir.path) as proj_it:
+                                for f in proj_it:
+                                    if f.name.endswith(".jsonl") and not f.is_symlink() and f.is_file(follow_symlinks=False):
+                                        _TRANSCRIPT_CACHE[f.name[:-6]] = Path(f.path)
+                        except OSError:
+                            pass
+            except OSError:
+                pass
         _TRANSCRIPT_CACHE_TIME = now
 
     return _TRANSCRIPT_CACHE.get(cli_session_id)
