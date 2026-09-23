@@ -1,4 +1,0 @@
-## 2024-05-18 - Improve explicit confirmation intent and async loading states on action buttons
-
-**Learning:** When a double-confirmation is required to bypass a warning (like 'App is running'), updating the button text to explicitly state the override intent (e.g., 'Do it anyway') significantly improves user confidence compared to simply having them click the same button again. Furthermore, updating button text to reflect loading states ('Removing...', 'Vinculando...') alongside disabling them provides clear, immediate feedback for asynchronous actions.
-**Action:** Consistently apply dynamic label updates (`configure(text=...)`) on Tkinter/customtkinter action buttons to indicate state changes: switch labels on first-click to confirm bypasses, and switch to gerund forms to provide immediate loading feedback when async tasks start.
