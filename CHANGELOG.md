@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.3] - 2026-09-24
+
+### Security
+- Hardened directory move/rename operations against TOCTOU symlink hijacking.
+
 ## [2.1.2] - 2026-09-22
 
 ### Performance
