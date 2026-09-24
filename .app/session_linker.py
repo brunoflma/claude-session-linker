@@ -54,6 +54,7 @@ import ntpath
 import posixpath
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -381,6 +382,33 @@ def _secure_write_text(path: Path, content: str) -> None:
     fd = os.open(path, flags, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(content)
+
+def _secure_move_dir(src: Path, dest: Path) -> None:
+    if src.is_symlink() or dest.is_symlink():
+        raise OSError("Refusing to move or copy involving a symlinked directory")
+    src_stat = src.stat(follow_symlinks=False)
+    if not stat.S_ISDIR(src_stat.st_mode):
+        raise OSError("Source is not a directory")
+
+    if dest.exists() and src != dest:
+        shutil.copytree(
+            src, dest,
+            symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True,
+            copy_function=_secure_copy,
+        )
+        try:
+            if src.stat(follow_symlinks=False).st_ino != src_stat.st_ino or src.is_symlink():
+                raise OSError("Source directory was hijacked into a symlink during copytree")
+        except FileNotFoundError:
+            raise OSError("Source directory disappeared during copytree")
+        _secure_rmtree(src)
+    elif src != dest:
+        src.rename(dest)
+        try:
+            if dest.stat(follow_symlinks=False).st_ino != src_stat.st_ino or dest.is_symlink():
+                raise OSError("Source directory was hijacked into a symlink before renaming")
+        except FileNotFoundError:
+            raise OSError("Destination directory disappeared after renaming")
 
 def _secure_copy(src: Path | str, dest: Path | str) -> None:
     src_path = Path(src)
@@ -881,15 +909,7 @@ def normalize_cowork_session_copy(
     if old_project.is_symlink() or new_project.is_symlink():
         raise OSError("Refusing to move or copy a symlinked project directory")
     if old_project.exists() and old_project != new_project:
-        if new_project.exists():
-            shutil.copytree(
-                old_project, new_project,
-                symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True,
-                copy_function=_secure_copy,
-            )
-            _secure_rmtree(old_project)
-        else:
-            old_project.rename(new_project)
+        _secure_move_dir(old_project, new_project)
 
     replacements = {
         str(src_data_dir): str(dest_data_dir),
