@@ -13,7 +13,7 @@ class ReleaseTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='csl-release-test-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.git('init', '-b', 'master')
+        self.git('init', '-b', 'main')
         self.git('config', 'user.name', 'Release Test')
         self.git('config', 'user.email', 'test@example.com')
         for name in set(COMMON + sum(PLATFORM_FILES.values(), ())):

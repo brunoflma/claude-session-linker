@@ -30,7 +30,7 @@ Se o projeto ajudar no seu fluxo, use **Star** no topo do repositório para salv
 2. Extraia o pacote em uma pasta permanente.
 3. Siga o guia do seu sistema para instalar e abrir a ferramenta.
 
-As novas releases são geradas a partir de tags validadas em Windows e macOS. Cada ZIP inclui a versão e o commit de origem em `RELEASE.json`; os hashes ficam em `SHA256SUMS.txt`. O código da branch `master` pode conter desenvolvimento ainda não publicado. Veja o [changelog](CHANGELOG.md) e o [processo de publicação](RELEASING.md).
+As novas releases são geradas a partir de tags validadas em Windows e macOS. Cada ZIP inclui a versão e o commit de origem em `RELEASE.json`; os hashes ficam em `SHA256SUMS.txt`. O código da branch `main` pode conter desenvolvimento ainda não publicado. Veja o [changelog](CHANGELOG.md) e o [processo de publicação](RELEASING.md).
 
 Para preparar o ambiente com um agente, [copie o prompt de instalação](https://brunoflma.github.io/claude-session-linker/#instalar). O prompt separa instalar a ferramenta de autorizar operações sobre conversas reais.
 

@@ -71,7 +71,7 @@ def publish(tag, directory, verify_only=False):
     manifest, expected = verify_bundle(ROOT, tag, directory)
     if tag != manifest['tag']:
         raise ValueError('Tag must match the artifact version')
-    subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', manifest['commit'], 'origin/master'], check=True, capture_output=True)
+    subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', manifest['commit'], 'origin/main'], check=True, capture_output=True)
     remote = subprocess.check_output(['git', '-C', str(ROOT), 'ls-remote', 'origin', f'refs/tags/{tag}', f'refs/tags/{tag}^{{}}']).decode().splitlines()
     references = dict(line.split('\t')[::-1] for line in remote)
     remote_commit = references.get(f'refs/tags/{tag}^{{}}', references.get(f'refs/tags/{tag}'))

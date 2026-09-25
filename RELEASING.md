@@ -1,6 +1,6 @@
 # Publicação de versões
 
-A `master` contém o desenvolvimento atual. Cada release corresponde a um commit específico e mantém seus próprios pacotes. A partir desta configuração, uma nova tag `vX.Y.Z` executa a validação e a publicação automática.
+A `main` contém o desenvolvimento atual. Cada release corresponde a um commit específico e mantém seus próprios pacotes. A partir desta configuração, uma nova tag `vX.Y.Z` executa a validação e a publicação automática.
 
 ## Regra para alterações futuras
 
@@ -26,7 +26,7 @@ Depois de revisar o diff, publique a branch e aguarde `Validate application`. A 
 
 ## Criar a tag
 
-Verifique se as duas cópias locais e `origin/master` apontam para o commit validado. Troque os valores abaixo pela versão e pelo commit dessa publicação:
+Verifique se as duas cópias locais e `origin/main` apontam para o commit validado. Troque os valores abaixo pela versão e pelo commit dessa publicação:
 
 ```text
 git tag -a vX.Y.Z COMMIT_VALIDADO -m "Claude Session Linker X.Y.Z"

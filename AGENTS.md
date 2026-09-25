@@ -1,16 +1,16 @@
 # Application delivery and release rule
 
-This rule applies from 2026-09-21 onward. A requested delivery of application improvements must include the release process below when publication is authorized for the task. A push to `master` alone does not update the downloadable release. Do not describe an application update as released until its tag, packages, published release and public downloads have been verified.
+This rule applies from 2026-09-21 onward. A requested delivery of application improvements must include the release process below when publication is authorized for the task. A push to `main` alone does not update the downloadable release. Do not describe an application update as released until its tag, packages, published release and public downloads have been verified.
 
 Documentation, website, profile and illustration changes alone do not require a new application version. Ordinary questions are not authorization to publish a release. Honor an explicit request to keep a change unpublished.
 
 ## Before a version is published
 
-1. Fetch `origin` and tags, inspect the working tree and reconcile with `origin/master` without discarding local work.
+1. Fetch `origin` and tags, inspect the working tree and reconcile with `origin/main` without discarding local work.
 2. Keep the version centralized in `.app/VERSION`. Increase it for changed application code, installers, runtime assets or dependencies; document that version in `CHANGELOG.md`. Do not reuse an already released version for changed application files.
 3. Run the complete application suite, release-tool tests, Python syntax checks, presentation checks and `git diff --check`. Resolve failures; do not remove meaningful tests merely to publish.
-4. Commit the reviewed changes and push `master` within the task's publication authorization. Wait for `Validate application` to pass for every configured Windows/macOS runner. This workflow also validates extracted packages with synthetic profiles. Its checks do not authorize access to real conversations.
-5. Synchronize `D:\OneDrive\Github\claude-session-linker` with a fast-forward update. If this canonical checkout is missing, create a clean clone at that path. Verify that the working checkout, canonical checkout and `origin/master` resolve to the same intended commit before tagging.
+4. Commit the reviewed changes and push `main` within the task's publication authorization. Wait for `Validate application` to pass for every configured Windows/macOS runner. This workflow also validates extracted packages with synthetic profiles. Its checks do not authorize access to real conversations.
+5. Synchronize `D:\OneDrive\Github\claude-session-linker` with a fast-forward update. If this canonical checkout is missing, create a clean clone at that path. Verify that the working checkout, canonical checkout and `origin/main` resolve to the same intended commit before tagging.
 6. Create and push the annotated tag `v<version>` only for the validated commit. Never move or replace a published tag. Version tags are the trigger for `Publish release`; untagged commits do not silently replace downloads.
 
 ## Automated publication contract
