@@ -366,6 +366,8 @@ def load_labels() -> dict:
 
 
 def _secure_open_read(path: Path | str, mode: str = "r", encoding: str | None = None):
+    if ".." in Path(path).parts:
+        raise ValueError("Invalid file path")
     flags = os.O_RDONLY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= getattr(os, "O_NOFOLLOW")

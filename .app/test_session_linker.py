@@ -1111,6 +1111,17 @@ class MacDiscoveryTests(unittest.TestCase):
             finally:
                 session_linker.BACKUPS_DIR = original_backups_dir
 
+    def test_secure_open_read_path_traversal(self):
+        with self.assertRaises(ValueError):
+            session_linker._secure_open_read("../test.txt")
+
+    def test_secure_open_read_path_traversal_false_positive(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "file..name.txt"
+            file_path.write_text("test")
+            with session_linker._secure_open_read(file_path):
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()
