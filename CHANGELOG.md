@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.4] - 2026-09-24
+
+### UX
+- Melhorias na interface de usuário durante ações de carregamento, prevenindo encerramentos forçados (WM_DELETE_WINDOW) durante ações críticas e mostrando textos de estado mais claros em botões.
+
 ## [2.1.3] - 2026-09-24
 
 ### Security

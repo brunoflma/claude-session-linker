@@ -2014,7 +2014,7 @@ class SessionLinkerApp(ctk.CTk):
                     remove_btn.configure(text="Remover mesmo assim")
                     return
             remove_btn.configure(state="disabled", text="Removendo...")
-            cancel_btn.configure(state="disabled")
+            cancel_btn.configure(state="disabled", text="Aguarde...")
             status.configure(text="Removendo e criando backup...", text_color=TXT2)
 
             def worker():
@@ -2034,18 +2034,21 @@ class SessionLinkerApp(ctk.CTk):
                         self.refresh()
                     else:
                         remove_btn.configure(state="normal", text="Remover")
-                        cancel_btn.configure(state="normal")
+                        cancel_btn.configure(state="normal", text="Cancelar")
 
                 self.after(0, apply)
 
             threading.Thread(target=worker, daemon=True).start()
 
         def close_dialog():
+            if cancel_btn.cget("state") == "disabled":
+                return
             dialog.destroy()
             if getattr(dialog, "_remove_completed", False):
                 self.refresh()
 
         dialog.bind("<Escape>", lambda _e: close_dialog())
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
 
         actions = self._dialog_actions(box)
         actions.pack(fill="x", padx=18, pady=(6, 18))
@@ -2153,7 +2156,7 @@ class SessionLinkerApp(ctk.CTk):
             # and finish before the "Vinculando…" state is even noticeable.
             show_status("Vinculando…", TXT2, SURF2, BRD)
             link_btn.configure(state="disabled", text="Vinculando...")
-            close_btn.configure(state="disabled")
+            close_btn.configure(state="disabled", text="Aguarde...")
             for button in row_buttons.values():
                 button.configure(state="disabled")
 
@@ -2190,7 +2193,7 @@ class SessionLinkerApp(ctk.CTk):
                         self.refresh()
                     else:
                         link_btn.configure(state="normal", text="Vincular")
-                        close_btn.configure(state="normal")
+                        close_btn.configure(state="normal", text="Cancelar")
                         for button in row_buttons.values():
                             button.configure(state="normal")
 
@@ -2199,11 +2202,14 @@ class SessionLinkerApp(ctk.CTk):
             threading.Thread(target=worker, daemon=True).start()
 
         def close_dialog():
+            if close_btn.cget("state") == "disabled":
+                return
             dialog.destroy()
             if getattr(dialog, "_link_completed", False):
                 self.refresh()
 
         dialog.bind("<Escape>", lambda _e: close_dialog())
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
 
         actions = self._dialog_actions(box)
         actions.pack(side="bottom", fill="x", padx=18, pady=(4, 18))
@@ -2354,12 +2360,18 @@ class SessionLinkerApp(ctk.CTk):
         verdict = ctk.CTkLabel(box, text="", font=self._f_b, text_color=TXT, wraplength=560, justify="left")
         verdict.pack(anchor="w", padx=16, pady=(14, 6), fill="x")
 
+        def close_dialog():
+            if close_btn.cget("state") == "disabled":
+                return
+            dialog.destroy()
+
         actions = self._dialog_actions(box)
         actions.pack(fill="x", padx=16, pady=(6, 16))
-        close_btn = self._dialog_button(actions, "Fechar", dialog.destroy, "secondary", "right")
+        close_btn = self._dialog_button(actions, "Aguarde...", close_dialog, "secondary", "right")
         close_btn.configure(state="disabled")
 
-        dialog.bind("<Escape>", lambda _e: dialog.destroy() if close_btn.cget("state") != "disabled" else None)
+        dialog.bind("<Escape>", lambda _e: close_dialog())
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
 
         def fmt_progress(p):
             if not p.get("found"):
@@ -2371,7 +2383,7 @@ class SessionLinkerApp(ctk.CTk):
         def apply_results(pa, pb):
             if not dialog.winfo_exists():
                 return
-            close_btn.configure(state="normal")
+            close_btn.configure(state="normal", text="Fechar")
             status.configure(text="")
             lbl_a.configure(text=fmt_progress(pa))
             lbl_b.configure(text=fmt_progress(pb))
