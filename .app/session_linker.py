@@ -1278,6 +1278,9 @@ def conversation_file_available(session: dict, mode: str | None = None) -> bool:
     return find_transcript_path(session.get("cliSessionId", "")) is not None
 
 
+_IDENTITY_RESOLVE_CACHE = {}
+
+
 def conversation_file_identity(session: dict, mode: str | None = None):
     if mode == "cowork":
         data_dir = session.get("data_dir")
@@ -1293,10 +1296,19 @@ def conversation_file_identity(session: dict, mode: str | None = None):
         return None
     if path is None or path.is_symlink() or not path.exists():
         return None
-    try:
-        return path.resolve()
-    except OSError:
-        return path
+
+    # Bolt Optimization: Prevent O(N) disk I/O bottlenecks when verifying
+    # sessions_are_comparable in loops (e.g. build_compare_candidates) by
+    # globally caching the path resolution. This avoids strict symlink
+    # resolution syscalls for every path segment on repeated checks.
+    key = str(path)
+    if key not in _IDENTITY_RESOLVE_CACHE:
+        try:
+            _IDENTITY_RESOLVE_CACHE[key] = path.resolve()
+        except OSError:
+            _IDENTITY_RESOLVE_CACHE[key] = path
+
+    return _IDENTITY_RESOLVE_CACHE[key]
 
 
 def sessions_are_comparable(left_session: dict, right_session: dict, mode: str | None = None) -> bool:
