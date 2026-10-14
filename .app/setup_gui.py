@@ -412,7 +412,17 @@ class SetupApp(tk.Tk):
                 shell=False,
             )
             if proc.stdout is not None:
-                for line in proc.stdout:
+                total_bytes = 0
+                max_bytes = 5 * 1024 * 1024  # 5MB limit
+                while True:
+                    line = proc.stdout.readline(1024 * 1024)
+                    if not line:
+                        break
+                    total_bytes += len(line)
+                    if total_bytes > max_bytes:
+                        self.after(0, self._append, "\n[Output truncated due to size limit]\n")
+                        proc.kill()
+                        break
                     self.after(0, self._append, line)
             proc.wait(timeout=300)
             code = proc.returncode
