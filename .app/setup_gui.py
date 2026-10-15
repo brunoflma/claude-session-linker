@@ -412,7 +412,16 @@ class SetupApp(tk.Tk):
                 shell=False,
             )
             if proc.stdout is not None:
-                for line in proc.stdout:
+                total_chars = 0
+                max_chars = 5 * 1024 * 1024  # Security: 5MB limit to prevent DoS (OOM)
+                while True:
+                    line = proc.stdout.readline(4096)
+                    if not line:
+                        break
+                    total_chars += len(line)
+                    if total_chars > max_chars:
+                        proc.kill()
+                        break
                     self.after(0, self._append, line)
             proc.wait(timeout=300)
             code = proc.returncode
