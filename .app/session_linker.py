@@ -400,8 +400,11 @@ def _secure_move_dir(src: Path, dest: Path) -> None:
         )
         try:
             if src.stat(follow_symlinks=False).st_ino != src_stat.st_ino or src.is_symlink():
+                _secure_rmtree(dest)
                 raise OSError("Source directory was hijacked into a symlink during copytree")
         except FileNotFoundError:
+            if dest.exists():
+                _secure_rmtree(dest)
             raise OSError("Source directory disappeared during copytree")
         _secure_rmtree(src)
     elif src != dest:
@@ -726,6 +729,9 @@ def scan_cowork_sessions() -> dict:
 
 
 def backup_dir_tree(dir_path: Path, label: str) -> Path:
+    if dir_path.is_symlink():
+        raise OSError("Refusing to backup a symlinked directory")
+    dir_stat = dir_path.stat(follow_symlinks=False)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     # Security: sanitize label to prevent path traversal if account/profile name is malicious
     safe_label = re.sub(r"[^A-Za-z0-9\-\s]", "-", label).strip("-")
@@ -740,6 +746,16 @@ def backup_dir_tree(dir_path: Path, label: str) -> Path:
         with zipfile.ZipFile(f, "x", zipfile.ZIP_DEFLATED) as zf:
             for target_f in _safe_walk_files(dir_path):
                 zf.write(target_f, target_f.relative_to(dir_path.parent))
+
+    try:
+        if dir_path.stat(follow_symlinks=False).st_ino != dir_stat.st_ino or dir_path.is_symlink():
+            if zip_path.exists():
+                zip_path.unlink()
+            raise OSError("Directory was hijacked into a symlink during backup")
+    except FileNotFoundError:
+        if zip_path.exists():
+            zip_path.unlink()
+        raise OSError("Directory disappeared during backup")
 
     return zip_path
 
@@ -1085,6 +1101,7 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
     backup_path = backup_dir_tree(target_ws, "cowork-workspace")
     try:
         if session.get("data_dir") and not session["data_dir"].is_symlink() and session["data_dir"].is_dir():
+            src_stat = session["data_dir"].stat(follow_symlinks=False)
             # ignore_dangling_symlinks: session output folders can contain
             # tool install artifacts (e.g. npm's node_modules/.bin) with
             # symlinks that no longer resolve -- that shouldn't abort an
@@ -1094,6 +1111,14 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
                 symlinks=True, ignore_dangling_symlinks=True,
                 copy_function=_secure_copy,
             )
+            try:
+                if session["data_dir"].stat(follow_symlinks=False).st_ino != src_stat.st_ino or session["data_dir"].is_symlink():
+                    _secure_rmtree(dest_data_dir)
+                    raise OSError("Source directory was hijacked into a symlink during copytree")
+            except FileNotFoundError:
+                if dest_data_dir.exists():
+                    _secure_rmtree(dest_data_dir)
+                raise OSError("Source directory disappeared during copytree")
         normalize_cowork_session_copy(
             session["path"],
             dest_path,
