@@ -389,7 +389,11 @@ def _secure_write_text(path: Path, content: str) -> None:
         # Inherit os.replace's atomic guarantees
         os.replace(tmp_path, path)
     except Exception:
-        os.unlink(tmp_path)
+        try:
+            os.chmod(tmp_path, 0o600)
+            os.unlink(tmp_path)
+        except OSError:
+            pass
         raise
 
 def _secure_move_dir(src: Path, dest: Path) -> None:
@@ -441,7 +445,11 @@ def _secure_copy(src: Path | str, dest: Path | str) -> None:
         # Inherit os.replace's atomic guarantees
         os.replace(tmp_path, dest_path)
     except Exception:
-        os.unlink(tmp_path)
+        try:
+            os.chmod(tmp_path, 0o600)
+            os.unlink(tmp_path)
+        except OSError:
+            pass
         raise
 
 

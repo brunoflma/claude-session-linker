@@ -1088,6 +1088,42 @@ class MacDiscoveryTests(unittest.TestCase):
                 # Check that permissions are 0o600
                 self.assertEqual(st.st_mode & 0o777, 0o600)
 
+    @patch("os.replace")
+    def test_secure_write_text_replace_fails(self, mock_replace):
+        mock_replace.side_effect = OSError("Mock replace failure")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "target.txt"
+            file_path.write_text("original data")
+
+            with self.assertRaises(OSError) as cm:
+                session_linker._secure_write_text(file_path, "new data")
+
+            self.assertEqual(str(cm.exception), "Mock replace failure")
+            self.assertEqual(file_path.read_text(), "original data")
+
+            # Verify the temp file was unlinked (there should be no extra files)
+            files = list(Path(tmp_dir).iterdir())
+            self.assertEqual(len(files), 1)
+
+    @patch("os.replace")
+    def test_secure_copy_replace_fails(self, mock_replace):
+        mock_replace.side_effect = OSError("Mock replace failure")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            src_path = Path(tmp_dir) / "source.txt"
+            src_path.write_text("source data")
+            dest_path = Path(tmp_dir) / "dest.txt"
+            dest_path.write_text("original dest data")
+
+            with self.assertRaises(OSError) as cm:
+                session_linker._secure_copy(src_path, dest_path)
+
+            self.assertEqual(str(cm.exception), "Mock replace failure")
+            self.assertEqual(dest_path.read_text(), "original dest data")
+
+            # Verify the temp file was unlinked (only source and dest should remain)
+            files = list(Path(tmp_dir).iterdir())
+            self.assertEqual(len(files), 2)
+
     def test_backup_dir_tree_permissions(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             sessions_dir = Path(tmp_dir) / "sessions"
