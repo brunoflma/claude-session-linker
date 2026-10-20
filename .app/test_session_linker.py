@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch, Mock
 
@@ -1087,6 +1088,92 @@ class MacDiscoveryTests(unittest.TestCase):
                 st = os.stat(file_path)
                 # Check that permissions are 0o600
                 self.assertEqual(st.st_mode & 0o777, 0o600)
+
+    @patch("os.replace")
+    def test_secure_write_text_replace_fails(self, mock_replace):
+        mock_replace.side_effect = OSError("Mock replace failure")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / "target.txt"
+            file_path.write_text("original data")
+
+            with self.assertRaises(OSError) as cm:
+                session_linker._secure_write_text(file_path, "new data")
+
+            self.assertEqual(str(cm.exception), "Mock replace failure")
+            self.assertEqual(file_path.read_text(), "original data")
+
+            # Verify the temp file was unlinked (there should be no extra files)
+            files = list(Path(tmp_dir).iterdir())
+            self.assertEqual(len(files), 1)
+
+    @patch("os.replace")
+    def test_secure_copy_readonly_source_replace_fails(self, mock_replace):
+        mock_replace.side_effect = OSError("Mock replace failure")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            src_path = Path(tmp_dir) / "source.txt"
+            src_path.write_text("source data")
+            dest_path = Path(tmp_dir) / "dest.txt"
+            dest_path.write_text("original dest data")
+
+            src_path.chmod(0o400)
+            try:
+                with self.assertRaises(OSError) as cm:
+                    session_linker._secure_copy(src_path, dest_path)
+
+                self.assertEqual(str(cm.exception), "Mock replace failure")
+                self.assertEqual(dest_path.read_text(), "original dest data")
+                self.assertEqual(src_path.read_text(), "source data")
+                self.assertEqual(set(Path(tmp_dir).iterdir()), {src_path, dest_path})
+            finally:
+                src_path.chmod(0o600)
+
+    def test_secure_write_text_partial_write_fails(self):
+        failure = OSError("Mock partial write failure")
+        real_fdopen = os.fdopen
+
+        @contextmanager
+        def failing_fdopen(*args, **kwargs):
+            with real_fdopen(*args, **kwargs) as stream:
+                writer = Mock(wraps=stream)
+
+                def fail_write(content):
+                    stream.write(content[:1])
+                    raise failure
+
+                writer.write.side_effect = fail_write
+                yield writer
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = Path(tmp_dir) / "target.txt"
+            target.write_text("original data", encoding="utf-8")
+            with patch("os.fdopen", side_effect=failing_fdopen), patch("os.replace") as replace:
+                with self.assertRaises(OSError) as cm:
+                    session_linker._secure_write_text(target, "new data")
+            self.assertIs(cm.exception, failure)
+            replace.assert_not_called()
+            self.assertEqual(target.read_text(encoding="utf-8"), "original data")
+            self.assertEqual(set(Path(tmp_dir).iterdir()), {target})
+
+    def test_secure_copy_partial_copy_fails(self):
+        failure = OSError("Mock partial copy failure")
+
+        def fail_copy(source, destination):
+            destination.write(source.read(1))
+            raise failure
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source = Path(tmp_dir) / "source.txt"
+            target = Path(tmp_dir) / "target.txt"
+            source.write_bytes(b"source data")
+            target.write_bytes(b"original data")
+            with patch("shutil.copyfileobj", side_effect=fail_copy), patch("os.replace") as replace:
+                with self.assertRaises(OSError) as cm:
+                    session_linker._secure_copy(source, target)
+            self.assertIs(cm.exception, failure)
+            replace.assert_not_called()
+            self.assertEqual(target.read_bytes(), b"original data")
+            self.assertEqual(source.read_bytes(), b"source data")
+            self.assertEqual(set(Path(tmp_dir).iterdir()), {source, target})
 
     def test_backup_dir_tree_permissions(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

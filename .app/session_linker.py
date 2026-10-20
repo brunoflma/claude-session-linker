@@ -378,12 +378,23 @@ def _secure_open_read(path: Path | str, mode: str = "r", encoding: str | None = 
 def _secure_write_text(path: Path, content: str) -> None:
     if ".." in path.parts:
         raise Exception("Invalid file path")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= getattr(os, "O_NOFOLLOW")
-    fd = os.open(path, flags, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(content)
+
+    import tempfile
+
+    # Write to a secure temporary file first, then atomically replace the target
+    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        # Inherit os.replace's atomic guarantees
+        os.replace(tmp_path, path)
+    except Exception:
+        try:
+            os.chmod(tmp_path, 0o600)
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 def _secure_move_dir(src: Path, dest: Path) -> None:
     if src.is_symlink() or dest.is_symlink():
@@ -422,13 +433,24 @@ def _secure_copy(src: Path | str, dest: Path | str) -> None:
         raise Exception("Invalid file path")
     if src_path.is_symlink() or dest_path.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= getattr(os, "O_NOFOLLOW")
-    fd = os.open(dest_path, flags, 0o600)
-    with os.fdopen(fd, "wb") as f_dst, _secure_open_read(src_path, "rb") as f_src:
-        shutil.copyfileobj(f_src, f_dst)
-    shutil.copystat(src_path, dest_path, follow_symlinks=False)
+
+    import tempfile
+
+    # Write to a secure temporary file first, then atomically replace the target
+    fd, tmp_path = tempfile.mkstemp(dir=str(dest_path.parent))
+    try:
+        with os.fdopen(fd, "wb") as f_dst, _secure_open_read(src_path, "rb") as f_src:
+            shutil.copyfileobj(f_src, f_dst)
+        shutil.copystat(src_path, tmp_path, follow_symlinks=False)
+        # Inherit os.replace's atomic guarantees
+        os.replace(tmp_path, dest_path)
+    except Exception:
+        try:
+            os.chmod(tmp_path, 0o600)
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def save_labels(labels: dict) -> None:
