@@ -1833,13 +1833,17 @@ class SessionLinkerApp(ctk.CTk):
                 command=lambda a=account_id: self._select_account(a),
             )
             btn.grid(row=0, column=0, sticky="ew", padx=(10, 0), pady=(6, 0))
+            meta_color_normal = GREEN if is_active else TXT3
+            meta_color_hover = GREEN_H if is_active else TXT2
             meta = ctk.CTkLabel(
                 row, text=subtitle, font=self._f_x,
-                text_color=GREEN if is_active else TXT3, anchor="w",
+                text_color=meta_color_normal, anchor="w",
                 cursor="hand2",
             )
             meta.grid(row=1, column=0, sticky="ew", padx=(10, 0), pady=(0, 8))
             meta.bind("<Button-1>", lambda _e, a=account_id: self._select_account(a))
+            meta.bind("<Enter>", lambda _e, w=meta, c=meta_color_hover: w.configure(text_color=c))
+            meta.bind("<Leave>", lambda _e, w=meta, c=meta_color_normal: w.configure(text_color=c))
 
             edit_btn = ctk.CTkButton(
                 row, cursor="hand2", text="✎", width=34, height=34, corner_radius=6,
@@ -1930,6 +1934,8 @@ class SessionLinkerApp(ctk.CTk):
             anchor="w", wraplength=760, justify="left", cursor="hand2"
         )
         meta_label.grid(row=1, column=0, sticky="ew", pady=(4, 10))
+        meta_label.bind("<Enter>", lambda _e: meta_label.configure(text_color=INK2))
+        meta_label.bind("<Leave>", lambda _e: meta_label.configure(text_color=INK3))
 
         def copy_cwd(_e=None, cwd=session.get("cwd", "")):
             if cwd:
