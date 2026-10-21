@@ -23,7 +23,7 @@ pywExe = FindPythonw()
 If pywExe = "" Then
     Dim r
     r = MsgBox("O Python não foi encontrado nesta máquina." & vbCrLf & vbCrLf & _
-        "Instale o Python 3.10 ou superior (marque 'Add python.exe to PATH')" & vbCrLf & _
+        "Instale o Python 3.11 ou superior (marque 'Add python.exe to PATH')" & vbCrLf & _
         "e depois rode este instalador novamente." & vbCrLf & vbCrLf & _
         "Abrir a página de download agora?", _
         vbExclamation + vbYesNo, "Claude Session Linker - Python necessário")
@@ -34,15 +34,14 @@ End If
 objShell.Run Chr(34) & pywExe & Chr(34) & " " & Chr(34) & guiPy & Chr(34), 1, False
 
 Function FindPythonw()
-    Dim bases(1), vers(11), b, v, dir, cand
+    Dim bases(1), vers(7), b, v, dir, cand
     bases(0) = "HKLM\SOFTWARE\Python\PythonCore\"
     bases(1) = "HKCU\SOFTWARE\Python\PythonCore\"
     vers(0)="3.14" : vers(1)="3.13" : vers(2)="3.12" : vers(3)="3.11"
-    vers(4)="3.10" : vers(5)="3.14-64" : vers(6)="3.13-64" : vers(7)="3.12-64"
-    vers(8)="3.11-64" : vers(9)="3.10-64" : vers(10)="3.9" : vers(11)="3.9-64"
+    vers(4)="3.14-64" : vers(5)="3.13-64" : vers(6)="3.12-64" : vers(7)="3.11-64"
 
     For b = 0 To 1
-        For v = 0 To 11
+        For v = 0 To 7
             On Error Resume Next
             dir = objShell.RegRead(bases(b) & vers(v) & "\InstallPath\")
             If Err.Number = 0 And Len(Trim(dir)) > 0 Then

@@ -1,7 +1,7 @@
 # ============================================================================
 # Claude Session Linker - setup do ambiente (fonte unica de verdade)
 # ============================================================================
-# Detecta um Python 3.10+, (re)cria o venv isolado em .app\venv, instala as
+# Detecta um Python 3.11+, (re)cria o venv isolado em .app\venv, instala as
 # dependencias e verifica os imports da GUI. Escreve um resultado legivel em
 # .app\logs\setup-result.txt e sai com:
 #   0 tudo pronto
@@ -25,7 +25,7 @@ $venv    = Join-Path $appDir "venv"
 $req     = Join-Path $appDir "requirements.txt"
 $logDir  = Join-Path $appDir "logs"
 $result  = Join-Path $logDir "setup-result.txt"
-$minMajor, $minMinor = 3, 10
+$minMajor, $minMinor = 3, 11
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $utf8NoBom
@@ -66,7 +66,7 @@ function Test-PythonVersion([string]$pythonCommand, [string[]]$arguments) {
 function Find-Python {
     $py = Get-Command "py" -ErrorAction SilentlyContinue
     if ($py) {
-        foreach ($ver in @("3.14", "3.13", "3.12", "3.11", "3.10")) {
+        foreach ($ver in @("3.14", "3.13", "3.12", "3.11")) {
             $arg = "-$ver"
             if (Test-PythonVersion $py.Source @($arg)) {
                 return @{ Command = $py.Source; Arguments = @($arg) }

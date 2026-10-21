@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Claude Session Linker - macOS environment setup (source of truth on macOS)
-# Detects Python 3.10+ with tkinter (installs python-tk via Homebrew if needed),
+# Detects Python 3.11+ with tkinter (installs python-tk via Homebrew if needed),
 # (re)creates the isolated venv in .app/venv, installs dependencies, and
 # validates the GUI imports. Writes a readable result to .app/logs/setup-result.txt.
 # Exit codes: 0 ready | 2 Python/tkinter missing | 3 venv failed |
@@ -24,7 +24,7 @@ REQ="$APP_DIR/requirements.txt"
 LOG_DIR="$APP_DIR/logs"
 RESULT="$LOG_DIR/setup-result.txt"
 MIN_MAJOR=3
-MIN_MINOR=10
+MIN_MINOR=11
 
 if ! mkdir -p "$LOG_DIR" 2>/dev/null; then
   echo "Could not create .app/logs. Move the project to a writable folder and retry."
@@ -54,9 +54,9 @@ py_has_tk() {
 VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo 0.0.0)"
 echo "Claude Session Linker $VERSION - configuring environment (macOS)..."
 
-# --- 1. Find a 3.10+ interpreter (prefer newest) ----------------------------
+# --- 1. Find a 3.11+ interpreter (prefer newest) ----------------------------
 PYTHON=""
-for cand in python3.15 python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
+for cand in python3.15 python3.14 python3.13 python3.12 python3.11 python3; do
   path="$(command -v "$cand" 2>/dev/null)" || continue
   [ -n "$path" ] || continue
   if py_version_ok "$path"; then PYTHON="$path"; break; fi

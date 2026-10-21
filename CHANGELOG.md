@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.6] - 2026-10-21
+
+### Security
+- Upgraded Pillow to 13.0.0 resolving 10 CVEs (including AIKIDO-2026-455429, CVE-2026-112403, and related buffer overflow vulnerabilities).
+- Raised minimum supported Python runtime requirement to Python 3.11+ across installer scripts, documentation, and CI matrices.
+
 ## [2.1.5] - 2026-10-21
 
 ### Security

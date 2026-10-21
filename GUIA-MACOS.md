@@ -6,7 +6,7 @@ Este guia é exclusivo para macOS.
 
 - Claude Desktop instalado.
 - Pelo menos duas contas Claude já usadas nesse Mac.
-- Python 3.10 ou superior, com `tkinter`.
+- Python 3.11 ou superior, com `tkinter`.
 - Homebrew quando o Python encontrado não inclui `tkinter`.
 
 O setup instala `customtkinter`, `darkdetect` e `pillow` automaticamente em um ambiente isolado.
