@@ -603,6 +603,7 @@ def scan_sessions() -> dict:
     # Bolt Optimization: Load link_registry once before looping to prevent
     # O(N) disk reads and JSON parsing per session file
     link_registry = load_link_registry()
+    has_registry = bool(link_registry)
     for claude_dir in CLAUDE_DIRS:
         sessions_dir = claude_dir / "claude-code-sessions"
         if sessions_dir.is_symlink() or not sessions_dir.is_dir():
@@ -615,7 +616,9 @@ def scan_sessions() -> dict:
             for workspace_entry in os.scandir(account_entry.path):
                 if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
-                workspace_dir = Path(workspace_entry.path)
+                # Bolt Optimization: Prevent O(N) redundant Path object instantiations inside loops
+                # by keeping workspace_entry.name as string.
+                workspace_entry_name = workspace_entry.name
 
                 # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
                 # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
@@ -633,8 +636,9 @@ def scan_sessions() -> dict:
                         valid_data_dirs.add(file_entry.name)
 
                 for file_entry in json_files:
-                    f = Path(file_entry.path)
                     try:
+                        # Bolt Optimization: Direct file open using the path property of the DirEntry
+                        # instead of redundantly wrapping in Path(file_entry.path) before opening.
                         with _secure_open_read(file_entry.path, "rb") as f_in:
                             if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                                 continue
@@ -642,20 +646,26 @@ def scan_sessions() -> dict:
                             data = json.load(f_in)
                     except Exception:
                         continue
-                    link_metadata = link_registry.get(_link_key(f), {})
+
+                    # We still need the Path for the registry key.
+                    f = Path(file_entry.path)
+
+                    # Bolt Optimization: Skip expensive dictionary string/path formatting
+                    # using `_link_key(f)` if the `link_registry` is completely empty.
+                    link_metadata = link_registry.get(_link_key(f), {}) if has_registry else {}
                     account_sessions.append({
                         "path": f,
                         "data_dir": None,
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": sessions_dir,
-                        "sessionId": data.get("sessionId", f.stem),
+                        "sessionId": data.get("sessionId", file_entry.name[:-5]),
                         "cliSessionId": data.get("cliSessionId", ""),
                         "cwd": data.get("cwd", ""),
                         "title": data.get("title") or "(sem título)",
                         "lastActivityAt": data.get("lastActivityAt", 0),
                         "isArchived": data.get("isArchived", False),
-                        "workspaceUUID": workspace_dir.name,
+                        "workspaceUUID": workspace_entry_name,
                         "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
                         "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
                         "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
@@ -681,6 +691,7 @@ def scan_cowork_sessions() -> dict:
     # Bolt Optimization: Load link_registry once before looping to prevent
     # O(N) disk reads and JSON parsing per session file
     link_registry = load_link_registry()
+    has_registry = bool(link_registry)
     for claude_dir in CLAUDE_DIRS:
         cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
         if cowork_sessions_dir.is_symlink() or not cowork_sessions_dir.is_dir():
@@ -693,7 +704,9 @@ def scan_cowork_sessions() -> dict:
             for workspace_entry in os.scandir(account_entry.path):
                 if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
-                workspace_dir = Path(workspace_entry.path)
+                # Bolt Optimization: Prevent O(N) redundant Path object instantiations inside loops
+                # by keeping workspace_entry.name as string.
+                workspace_entry_name = workspace_entry.name
 
                 # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
                 # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
@@ -710,9 +723,13 @@ def scan_cowork_sessions() -> dict:
                     elif file_entry.is_dir(follow_symlinks=False):
                         valid_data_dirs.add(file_entry.name)
 
+                # We still need the workspace_dir Path later if there are valid_data_dirs.
+                workspace_dir = Path(workspace_entry.path) if json_files else None
+
                 for file_entry in json_files:
-                    f = Path(file_entry.path)
                     try:
+                        # Bolt Optimization: Direct file open using the path property of the DirEntry
+                        # instead of redundantly wrapping in Path(file_entry.path) before opening.
                         with _secure_open_read(file_entry.path, "rb") as f_in:
                             if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                                 continue
@@ -720,7 +737,13 @@ def scan_cowork_sessions() -> dict:
                             data = json.load(f_in)
                     except Exception:
                         continue
-                    link_metadata = link_registry.get(_link_key(f), {})
+
+                    # We still need the Path for the registry key and result dictionary.
+                    f = Path(file_entry.path)
+
+                    # Bolt Optimization: Skip expensive dictionary string/path formatting
+                    # using `_link_key(f)` if the `link_registry` is completely empty.
+                    link_metadata = link_registry.get(_link_key(f), {}) if has_registry else {}
 
                     stem = file_entry.name[:-5]
                     data_dir = workspace_dir / stem if stem in valid_data_dirs else None
@@ -731,13 +754,13 @@ def scan_cowork_sessions() -> dict:
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": cowork_sessions_dir,
-                        "sessionId": data.get("sessionId", f.stem),
+                        "sessionId": data.get("sessionId", stem),
                         "cliSessionId": data.get("cliSessionId", ""),
                         "cwd": data.get("cwd", ""),
                         "title": data.get("title") or "(sem título)",
                         "lastActivityAt": data.get("lastActivityAt", 0),
                         "isArchived": data.get("isArchived", False),
-                        "workspaceUUID": workspace_dir.name,
+                        "workspaceUUID": workspace_entry_name,
                         "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
                         "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
                         "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
