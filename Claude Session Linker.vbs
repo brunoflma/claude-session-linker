@@ -30,19 +30,17 @@ End If
 
 ' --- 2. Windows Registry (PATH-independent, works from any launch context) --
 If pythonExe = "" Then
-    Dim regBases(1), regVers(11)
+    Dim regBases(1), regVers(7)
     regBases(0) = "HKLM\SOFTWARE\Python\PythonCore\"
     regBases(1) = "HKCU\SOFTWARE\Python\PythonCore\"
     regVers(0)  = "3.14"    : regVers(1)  = "3.13"
     regVers(2)  = "3.12"    : regVers(3)  = "3.11"
-    regVers(4)  = "3.10"    : regVers(5)  = "3.9"
-    regVers(6)  = "3.14-64" : regVers(7)  = "3.13-64"
-    regVers(8)  = "3.12-64" : regVers(9)  = "3.11-64"
-    regVers(10) = "3.10-64" : regVers(11) = "3.9-64"
+    regVers(4)  = "3.14-64" : regVers(5)  = "3.13-64"
+    regVers(6)  = "3.12-64" : regVers(7)  = "3.11-64"
 
     Dim b, v, regVal, regCandidate
     For b = 0 To 1
-        For v = 0 To 11
+        For v = 0 To 7
             On Error Resume Next
             regVal = objShell.RegRead(regBases(b) & regVers(v) & "\InstallPath\")
             If Err.Number = 0 And Len(Trim(regVal)) > 0 Then
@@ -89,7 +87,7 @@ End If
 ' --- Guards ------------------------------------------------------------------
 If pythonExe = "" Then
     MsgBox "Ambiente Python não encontrado." & vbCrLf & vbCrLf & _
-           "Instale o Python 3.10+ em C:\Python3XX\ ou pelo instalador oficial, " & _
+           "Instale o Python 3.11+ em C:\Python3XX\ ou pelo instalador oficial, " & _
            "ou dê duplo clique em '00 - Setup Claude Session Linker.vbs' para criar o venv isolado.", _
            vbCritical, "Claude Session Linker - inicialização"
     WScript.Quit 1

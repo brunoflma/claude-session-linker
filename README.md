@@ -51,7 +51,7 @@ Para preparar o ambiente com um agente, [copie o prompt de instalação](https:/
 ## Requisitos
 
 - Claude Desktop instalado e pelo menos duas contas já usadas no computador.
-- Python **3.10 ou superior**.
+- Python **3.11 ou superior**.
 - No Windows, PowerShell.
 - No macOS, o Homebrew pode ser necessário para disponibilizar o `tkinter`.
 

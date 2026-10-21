@@ -6,7 +6,7 @@ Este guia é exclusivo para Windows 10 e Windows 11.
 
 - Claude Desktop instalado.
 - Pelo menos duas contas Claude já usadas nesse computador.
-- Python 3.10 ou superior.
+- Python 3.11 ou superior.
 - PowerShell, já incluído no Windows.
 
 O setup instala `customtkinter`, `darkdetect` e `pillow` automaticamente em um ambiente isolado.
@@ -83,7 +83,7 @@ O aplicativo não envia sessões, mensagens, tokens ou dados de contas para serv
 
 ### Python não encontrado
 
-Instale Python 3.10 ou superior pelo [python.org para Windows](https://www.python.org/downloads/windows/) e execute novamente `00 - Setup Claude Session Linker.vbs`.
+Instale Python 3.11 ou superior pelo [python.org para Windows](https://www.python.org/downloads/windows/) e execute novamente `00 - Setup Claude Session Linker.vbs`.
 
 ### O setup falhou
 

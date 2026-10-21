@@ -508,7 +508,7 @@ if __name__ == "__main__":
             code = 0
         samples = {
             0: "Ambiente pronto. Use o atalho 'Claude Session Linker.vbs' para abrir.",
-            2: "Python 3.10+ não encontrado. Instale em https://python.org e tente de novo.",
+            2: "Python 3.11+ não encontrado. Instale em https://python.org e tente de novo.",
             4: "Falha ao instalar dependências. Verifique sua conexão e tente novamente.",
         }
         def finish_self_test():
