@@ -1,0 +1,4 @@
+## 2026-10-21 - [Prevent TOCTOU attacks when appending logs]
+**Vulnerability:** The `_log` function appended entries to log files using `os.open` with `O_NOFOLLOW` flag to prevent TOCTOU symlink attacks. However, this is vulnerable on Windows because Windows ignores the `O_NOFOLLOW` flag during file creation or modification.
+**Learning:** Even using `os.open` with `O_NOFOLLOW` flag on Windows is not completely immune to TOCTOU symlink hijacking because Windows doesn't respect `O_NOFOLLOW` flag natively in standard implementations.
+**Prevention:** To safely prevent overwriting arbitrary files via destination symlinks across all platforms including Windows, implement an atomic file copy/write: write the source to a temporary file via `tempfile.mkstemp` and atomically swap it to the destination using `os.replace()`.

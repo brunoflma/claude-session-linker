@@ -139,12 +139,27 @@ def _log(message):
         except OSError:
             pass
 
-        flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= getattr(os, "O_NOFOLLOW")
-        fd = os.open(ERR_LOG, flags, 0o600)
-        with os.fdopen(fd, "a", encoding="utf-8") as f:
-            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+        import tempfile
+        # Write to a secure temporary file first, then atomically replace the target
+        fd, tmp_path = tempfile.mkstemp(dir=str(ERR_LOG.parent))
+        try:
+            with os.fdopen(fd, "wb") as f_out:
+                if not ERR_LOG.is_symlink() and ERR_LOG.exists():
+                    try:
+                        with _secure_open_read(ERR_LOG, "rb") as f_in:
+                            import shutil
+                            shutil.copyfileobj(f_in, f_out)
+                    except Exception:
+                        pass
+                f_out.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n".encode("utf-8"))
+            # Inherit os.replace's atomic guarantees
+            os.replace(tmp_path, ERR_LOG)
+        except Exception:
+            try:
+                os.chmod(tmp_path, 0o600)
+                os.unlink(tmp_path)
+            except OSError:
+                pass
     except Exception:
         pass
 

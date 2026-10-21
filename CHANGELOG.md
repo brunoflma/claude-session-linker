@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.5] - 2026-10-21
+
+### Security
+- Fixed TOCTOU symlink attack vector in appending logs mechanism on Windows by replacing `os.open` with a secure atomic file write pattern using `tempfile.mkstemp` and `os.replace`.
+
 ## [2.1.4] - 2026-09-24
 
 ### UX
