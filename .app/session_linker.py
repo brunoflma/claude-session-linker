@@ -437,8 +437,17 @@ def _secure_move_dir(src: Path, dest: Path) -> None:
         src.rename(dest)
         try:
             if dest.stat(follow_symlinks=False).st_ino != src_stat.st_ino or dest.is_symlink():
+                if dest.is_symlink() or not dest.is_dir():
+                    dest.unlink()
+                else:
+                    _secure_rmtree(dest)
                 raise OSError("Source directory was hijacked into a symlink before renaming")
         except FileNotFoundError:
+            if dest.exists():
+                if dest.is_symlink() or not dest.is_dir():
+                    dest.unlink()
+                else:
+                    _secure_rmtree(dest)
             raise OSError("Destination directory disappeared after renaming")
 
 def _secure_copy(src: Path | str, dest: Path | str) -> None:
