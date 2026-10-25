@@ -126,20 +126,9 @@ if _TCL.exists():
 
 def _log(message):
     try:
-        # Security: prevent DoS by limiting log file size (5MB)
-        try:
-            if not ERR_LOG.is_symlink() and ERR_LOG.exists() and ERR_LOG.stat(follow_symlinks=False).st_size > 5 * 1024 * 1024:
-                try:
-                    backup = ERR_LOG.with_name(ERR_LOG.name + ".1")
-                    if not backup.is_symlink() and backup.exists():
-                        backup.unlink()
-                    ERR_LOG.rename(backup)
-                except Exception:
-                    pass
-        except OSError:
-            pass
-
         import tempfile
+        import shutil
+        import os
         # Write to a secure temporary file first, then atomically replace the target
         fd, tmp_path = tempfile.mkstemp(dir=str(ERR_LOG.parent))
         try:
@@ -147,8 +136,22 @@ def _log(message):
                 if not ERR_LOG.is_symlink() and ERR_LOG.exists():
                     try:
                         with _secure_open_read(ERR_LOG, "rb") as f_in:
-                            import shutil
-                            shutil.copyfileobj(f_in, f_out)
+                            # Security: prevent DoS by evaluating file size via the secure file descriptor
+                            if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # 5MB limit
+                                # Perform secure log rotation
+                                bak_fd, bak_tmp = tempfile.mkstemp(dir=str(ERR_LOG.parent))
+                                try:
+                                    with os.fdopen(bak_fd, "wb") as f_bak:
+                                        shutil.copyfileobj(f_in, f_bak)
+                                    os.replace(bak_tmp, ERR_LOG.with_name(ERR_LOG.name + ".1"))
+                                except Exception:
+                                    try:
+                                        os.chmod(bak_tmp, 0o600)
+                                        os.unlink(bak_tmp)
+                                    except OSError:
+                                        pass
+                            else:
+                                shutil.copyfileobj(f_in, f_out)
                     except Exception:
                         pass
                 f_out.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n".encode("utf-8"))
