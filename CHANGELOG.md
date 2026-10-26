@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.1.7] - 2026-10-26
+
+Esta publicação reúne as melhorias incorporadas desde a última versão distribuída, a 2.1.0, incluindo as correções posteriores à preparação da 2.1.6.
+
+### Segurança e integridade
+
+- Gravações e cópias de arquivos usam substituição atômica, com testes de preservação dos dados originais quando uma operação falha.
+- Movimentações de diretórios verificam a identidade da origem e removem o destino inválido quando detectam uma troca por link simbólico durante a operação.
+- A rotação de logs verifica o tamanho pelo descritor do arquivo aberto e substitui o backup de forma atômica.
+- Leitura de arquivos rejeita travessia de diretórios; a leitura do resultado do instalador tem limite de tamanho.
+- Dependência Pillow atualizada para 13.0.0. Os instaladores passam a exigir Python 3.11 ou superior.
+
+### Desempenho e interface
+
+- Busca de transcrições e descoberta de sessões reduzem operações de disco e criação repetida de objetos de caminho.
+- Comparação de conversas reutiliza a resolução de caminhos.
+- Botões e rótulos clicáveis oferecem retorno visual mais claro; ações assíncronas exibem seu estado e protegem operações em andamento contra o fechamento da janela.
+
+### Distribuição
+
+- Pacotes Windows e macOS gerados do mesmo commit, com manifesto, hashes e aliases estáveis de download.
+- Verificação semanal das alterações relevantes já integradas à `main`, com publicação condicionada à validação completa do aplicativo e dos pacotes.
+
 ## [2.1.6] - 2026-10-21
 
 ### Security

@@ -8,6 +8,14 @@ Mudanças no aplicativo, instaladores, recursos de runtime ou dependências exig
 
 O processo não cria releases a cada commit nem altera as versões antigas. A publicação é iniciada pelo envio da nova tag, depois da validação da atualização autorizada.
 
+## Verificação semanal
+
+A rotina agendada no Codex verifica o repositório às segundas-feiras, às 9h de Fortaleza (`America/Fortaleza`). Ela compara o commit do último release estável publicado com `origin/main` e publica quando encontra melhorias relevantes já integradas: correções funcionais ou de segurança, recursos, desempenho, usabilidade, instaladores ou dependências do aplicativo. Alterações apenas de documentação, site, testes ou infraestrutura sem efeito no produto não geram uma versão.
+
+A autorização desta rotina abrange preparar versão e changelog, fazer commit e push dessas alterações em `main`, sincronizar as duas cópias locais, criar uma nova tag anotada e concluir a publicação pelo workflow existente. A rotina não integra outras branches ou PRs, não descarta trabalho local e não enfraquece os testes ou os controles de publicação. Divergências, checks com falha e resultados incertos devem ser investigados e informados; uma publicação pendente não conta como concluída.
+
+Cada execução deve cumprir todas as etapas abaixo, conferir os downloads públicos e comunicar uma publicação, uma falha ou uma decisão necessária. Sem mudanças relevantes, registra a comparação e permanece silenciosa. Como a rotina usa arquivos locais, o computador e o aplicativo Codex precisam estar em execução no horário agendado.
+
 ## Preparar e validar
 
 Na raiz de uma cópia de trabalho limpa:
