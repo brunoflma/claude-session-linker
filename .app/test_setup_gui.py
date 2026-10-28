@@ -116,23 +116,32 @@ class SetupGuiSecurityTests(unittest.TestCase):
             res_file.write_text("STATUS=0\nSetup concluído com sucesso.", encoding="utf-8")
 
             with patch.object(setup_gui, "RESULT_FILE", res_file):
-                class DummyApp:
-                    def after(self, ms, func, *args):
-                        func(*args)
-                    def _finish(self, code, msg):
-                        self.finished_code = code
-                        self.finished_msg = msg
+                with patch("subprocess.Popen") as mock_popen:
+                    dummy_process = MagicMock()
+                    dummy_process.returncode = 0
+                    dummy_process.stdout = MagicMock()
+                    dummy_process.stdout.readline.side_effect = ["Executando setup...\n", ""]
+                    mock_popen.return_value = dummy_process
 
-                dummy_self = DummyApp()
-                # Simulate reading RESULT_FILE at end of _run_setup
-                flags = os.O_RDONLY
-                if hasattr(os, "O_NOFOLLOW"):
-                    flags |= getattr(os, "O_NOFOLLOW")
-                fd = os.open(setup_gui.RESULT_FILE, flags)
-                with os.fdopen(fd, "r", encoding="utf-8-sig") as f:
-                    self.assertLessEqual(os.fstat(f.fileno()).st_size, 1024 * 1024)
-                    raw = f.read().lstrip("\ufeff")
-                    self.assertTrue(raw.startswith("STATUS=0"))
+                    class DummyApp:
+                        def after(self, ms, func, *args):
+                            func(*args)
+
+                        def _append(self, text):
+                            pass
+
+                        def _finish(self, code, msg):
+                            self.finished_code = code
+                            self.finished_msg = msg
+
+                        _get_system_executable = setup_gui.SetupApp._get_system_executable
+                        _run_setup = setup_gui.SetupApp._run_setup
+
+                    dummy_self = DummyApp()
+                    dummy_self._run_setup()
+
+                    self.assertEqual(getattr(dummy_self, "finished_code", None), 0)
+                    self.assertEqual(getattr(dummy_self, "finished_msg", None), "Setup concluído com sucesso.")
 
     def test_setup_gui_symlink_parent_dir_support(self):
         spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
