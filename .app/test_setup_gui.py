@@ -80,5 +80,62 @@ class SetupGuiSecurityTests(unittest.TestCase):
         result = dummy_self._get_system_executable("file..exe")
         self.assertTrue(result.endswith("file..exe") or "cmd.exe" in result)
 
+    def test_setup_gui_open_url_validation(self):
+        spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
+        setup_gui = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup_gui)
+
+        class DummyApp:
+            _open = setup_gui.SetupApp._open
+
+        dummy_self = DummyApp()
+
+        with patch("webbrowser.open") as mock_web_open:
+            with patch("os.startfile", create=True) as mock_startfile:
+                # Dangerous or invalid URLs should be ignored
+                dummy_self._open("calc.exe")
+                dummy_self._open("file:///C:/Windows/notepad.exe")
+                dummy_self._open("ftp://example.com")
+                dummy_self._open(None)
+
+                mock_startfile.assert_not_called()
+                mock_web_open.assert_not_called()
+
+                # Valid HTTP/HTTPS URLs should proceed
+                dummy_self._open("https://www.python.org/downloads/")
+                self.assertTrue(mock_startfile.called or mock_web_open.called)
+
+    def test_setup_gui_symlink_rejection(self):
+        spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
+        setup_gui = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup_gui)
+
+        class DummyApp:
+            def _finish(self, code, msg):
+                self.finished_code = code
+                self.finished_msg = msg
+
+            def destroy(self):
+                self.destroyed = True
+
+            _start = setup_gui.SetupApp._start
+            _open_app = setup_gui.SetupApp._open_app
+
+        dummy_self = DummyApp()
+
+        # Test _start with symlinked SETUP_PS1
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_symlink", return_value=True):
+                dummy_self._start()
+                self.assertEqual(dummy_self.finished_code, 1)
+
+        # Test _open_app with symlinked LAUNCHER
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_symlink", return_value=True):
+                with patch("os.startfile", create=True) as mock_startfile:
+                    dummy_self._open_app()
+                    mock_startfile.assert_not_called()
+                    self.assertTrue(getattr(dummy_self, "destroyed", False))
+
 if __name__ == "__main__":
     unittest.main()

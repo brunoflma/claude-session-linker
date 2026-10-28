@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.8] - 2026-10-27
+
+### Segurança
+
+- Validação de esquema de URL (`http://` e `https://`) no instalador visual (`setup_gui.py`) antes de abrir links externos com `os.startfile` ou `webbrowser.open`.
+- Verificação contra links simbólicos nos scripts e executáveis do instalador (`setup.ps1` e atalho launcher) para prevenir a execução de scripts arbitrários via symlink hijacking.
+
 ## [2.1.7] - 2026-10-26
 
 Esta publicação reúne as melhorias incorporadas desde a última versão distribuída, a 2.1.0, incluindo as correções posteriores à preparação da 2.1.6.
