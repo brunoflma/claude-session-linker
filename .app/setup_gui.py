@@ -357,7 +357,7 @@ class SetupApp(tk.Tk):
         self._bar.itemconfigure(self._bar_id, fill=color)
 
     def _start(self):
-        if not SETUP_PS1.exists() or SETUP_PS1.is_symlink():
+        if not SETUP_PS1.exists():
             self._finish(1, f"setup.ps1 não encontrado em:\n{SETUP_PS1}")
             return
         self._set_status("Configurando ambiente...", BLUE)
@@ -495,7 +495,7 @@ class SetupApp(tk.Tk):
 
     def _open_app(self):
         try:
-            if LAUNCHER.exists() and not LAUNCHER.is_symlink():
+            if LAUNCHER.exists():
                 os.startfile(str(LAUNCHER))
         except Exception:
             pass

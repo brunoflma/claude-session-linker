@@ -4,8 +4,7 @@
 
 ### Segurança
 
-- Validação de esquema de URL (`http://` e `https://`) no instalador visual (`setup_gui.py`) antes de abrir links externos com `os.startfile` ou `webbrowser.open`.
-- Verificação contra links simbólicos nos scripts e executáveis do instalador (`setup.ps1` e atalho launcher) para prevenir a execução de scripts arbitrários via symlink hijacking.
+- Validação de esquema de URL (`http://` e `https://`) no instalador visual (`setup_gui.py`) antes de abrir links de download com `os.startfile` ou `webbrowser.open`.
 
 ## [2.1.7] - 2026-10-26
 

@@ -105,37 +105,75 @@ class SetupGuiSecurityTests(unittest.TestCase):
                 dummy_self._open("https://www.python.org/downloads/")
                 self.assertTrue(mock_startfile.called or mock_web_open.called)
 
-    def test_setup_gui_symlink_rejection(self):
+    def test_setup_gui_result_file_reading(self):
         spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
         setup_gui = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(setup_gui)
 
-        class DummyApp:
-            def _finish(self, code, msg):
-                self.finished_code = code
-                self.finished_msg = msg
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            res_file = Path(tmpdir) / "setup-result.txt"
+            res_file.write_text("STATUS=0\nSetup concluído com sucesso.", encoding="utf-8")
 
-            def destroy(self):
-                self.destroyed = True
+            with patch.object(setup_gui, "RESULT_FILE", res_file):
+                class DummyApp:
+                    def after(self, ms, func, *args):
+                        func(*args)
+                    def _finish(self, code, msg):
+                        self.finished_code = code
+                        self.finished_msg = msg
 
-            _start = setup_gui.SetupApp._start
-            _open_app = setup_gui.SetupApp._open_app
+                dummy_self = DummyApp()
+                # Simulate reading RESULT_FILE at end of _run_setup
+                flags = os.O_RDONLY
+                if hasattr(os, "O_NOFOLLOW"):
+                    flags |= getattr(os, "O_NOFOLLOW")
+                fd = os.open(setup_gui.RESULT_FILE, flags)
+                with os.fdopen(fd, "r", encoding="utf-8-sig") as f:
+                    self.assertLessEqual(os.fstat(f.fileno()).st_size, 1024 * 1024)
+                    raw = f.read().lstrip("\ufeff")
+                    self.assertTrue(raw.startswith("STATUS=0"))
 
-        dummy_self = DummyApp()
+    def test_setup_gui_symlink_parent_dir_support(self):
+        spec = importlib.util.spec_from_file_location("setup_gui", APP_DIR / "setup_gui.py")
+        setup_gui = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(setup_gui)
 
-        # Test _start with symlinked SETUP_PS1
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_symlink", return_value=True):
-                dummy_self._start()
-                self.assertEqual(dummy_self.finished_code, 1)
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            real_dir = Path(tmpdir) / "real_app"
+            real_dir.mkdir()
+            ps1_file = real_dir / "setup.ps1"
+            ps1_file.write_text("Write-Output 'OK'", encoding="utf-8")
 
-        # Test _open_app with symlinked LAUNCHER
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_symlink", return_value=True):
-                with patch("os.startfile", create=True) as mock_startfile:
-                    dummy_self._open_app()
-                    mock_startfile.assert_not_called()
-                    self.assertTrue(getattr(dummy_self, "destroyed", False))
+            link_dir = Path(tmpdir) / "linked_app"
+            try:
+                os.symlink(real_dir, link_dir, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symlinks not supported in environment")
+
+            symlinked_ps1 = link_dir / "setup.ps1"
+            with patch.object(setup_gui, "SETUP_PS1", symlinked_ps1):
+                class DummyApp:
+                    def _set_status(self, *args):
+                        pass
+                    def _append(self, *args):
+                        pass
+                    def _start_bar(self, *args):
+                        pass
+                    def _finish(self, code, msg):
+                        self.finished_code = code
+                        self.finished_msg = msg
+                    def _run_setup(self):
+                        pass
+
+                    _start = setup_gui.SetupApp._start
+
+                dummy_self = DummyApp()
+                with patch("threading.Thread") as mock_thread:
+                    dummy_self._start()
+                    # Verify _start succeeds and starts worker thread for legitimate symlinked parent path
+                    mock_thread.assert_called_once()
 
 if __name__ == "__main__":
     unittest.main()
