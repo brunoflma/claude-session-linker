@@ -484,6 +484,9 @@ class SetupApp(tk.Tk):
         self._start()
 
     def _open(self, url):
+        # Security: Only open HTTP/HTTPS URLs to prevent local path/command execution via startfile
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            return
         try:
             os.startfile(url)
         except Exception:

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.8] - 2026-10-27
+
+### Segurança
+
+- Validação de esquema de URL (`http://` e `https://`) no instalador visual (`setup_gui.py`) antes de abrir links de download com `os.startfile` ou `webbrowser.open`.
+
 ## [2.1.7] - 2026-10-26
 
 Esta publicação reúne as melhorias incorporadas desde a última versão distribuída, a 2.1.0, incluindo as correções posteriores à preparação da 2.1.6.
