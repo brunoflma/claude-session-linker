@@ -1183,22 +1183,32 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
             # tool install artifacts (e.g. npm's node_modules/.bin) with
             # symlinks that no longer resolve -- that shouldn't abort an
             # otherwise successful copy of the actual conversation data.
-            # dirs_exist_ok: a data folder left behind by an interrupted copy
-            # (index missing) is completed instead of failing with
-            # FileExistsError; the workspace backup above already holds it.
-            shutil.copytree(
-                session["data_dir"], dest_data_dir,
-                symlinks=True, ignore_dangling_symlinks=True, dirs_exist_ok=True,
-                copy_function=_secure_copy,
-            )
+            # Copy into a fresh staging folder inside the workspace, never into
+            # an existing tree: a data folder left behind by an interrupted
+            # copy (index missing) may contain nested symlinks that a merge
+            # would follow outside the workspace. Only after a complete copy
+            # is the leftover (already in the backup above) replaced.
+            staging = Path(tempfile.mkdtemp(prefix=".csl-staging-", dir=str(target_ws)))
             try:
-                if session["data_dir"].stat(follow_symlinks=False).st_ino != src_stat.st_ino or session["data_dir"].is_symlink():
-                    _secure_rmtree(dest_data_dir)
-                    raise OSError("Source directory was hijacked into a symlink during copytree")
-            except FileNotFoundError:
+                staged = staging / dest_data_dir.name
+                shutil.copytree(
+                    session["data_dir"], staged,
+                    symlinks=True, ignore_dangling_symlinks=True,
+                    copy_function=_secure_copy,
+                )
+                try:
+                    if session["data_dir"].stat(follow_symlinks=False).st_ino != src_stat.st_ino or session["data_dir"].is_symlink():
+                        raise OSError("Source directory was hijacked into a symlink during copytree")
+                except FileNotFoundError:
+                    raise OSError("Source directory disappeared during copytree")
+                if dest_data_dir.is_symlink():
+                    raise OSError("Refusing to replace a symlinked destination directory")
                 if dest_data_dir.exists():
-                    _secure_rmtree(dest_data_dir)
-                raise OSError("Source directory disappeared during copytree")
+                    _secure_rmtree(dest_data_dir)  # rmtree removes nested links, never their targets
+                os.rename(staged, dest_data_dir)
+            finally:
+                if staging.exists():
+                    _secure_rmtree(staging)
         normalize_cowork_session_copy(
             session["path"],
             dest_path,
@@ -1720,6 +1730,7 @@ class SessionLinkerApp(ctk.CTk):
         self.visible_limit = PAGE_SIZE
         self._load_error = None
         self._loaded = False
+        self._data_mode = self.session_mode  # mode the loaded sessions belong to
         self._refreshing = False
         self._search_after = None
         self._resize_after = None
@@ -2076,6 +2087,7 @@ class SessionLinkerApp(ctk.CTk):
             self._render_error(error)
             return
         self._load_error = None
+        self._data_mode = mode
         self.active_account = result["active"]
         self.sessions_by_account = result["sessions"]
         self.known_accounts = set(result["accounts"]) | set(result["sessions"])
@@ -2124,6 +2136,14 @@ class SessionLinkerApp(ctk.CTk):
         self.session_mode = mode
         self.selected_account = None
         self.visible_limit = PAGE_SIZE
+        # Drop the previous mode's sessions right away: until the new scan
+        # arrives, a search, filter or resize must not re-render them with
+        # the new mode's actions (a Code index copied into the Cowork tree).
+        self._loaded = False
+        self.sessions_by_account = {}
+        self.known_accounts = set()
+        self.duplicates = {}
+        self.link_groups = {}
         self._render_loading()
         self.refresh()
 
@@ -2279,6 +2299,8 @@ class SessionLinkerApp(ctk.CTk):
         return items
 
     def _render_sessions(self, keep_scroll=False):
+        if not self._loaded or self._load_error is not None or self._data_mode != self.session_mode:
+            return
         self._hide_tooltip()
         for w in self._scroll.winfo_children():
             w.destroy()
@@ -2384,11 +2406,12 @@ class SessionLinkerApp(ctk.CTk):
         return [
             (a, s) for a, s in group
             if s.get("cliSessionId") != session.get("cliSessionId")
-            and not is_direct_linked_counterpart(account_id, session, a, s, self.session_mode)
+            and not is_direct_linked_counterpart(account_id, session, a, s, self._data_mode)
         ]
 
     def _build_session_card(self, account_id, session):
-        card_mode = self.session_mode
+        # Actions follow the mode the data was scanned for, never the toggle.
+        card_mode = self._data_mode
         card = ctk.CTkFrame(self._scroll, fg_color=CARD, corner_radius=10, border_width=1, border_color=LINE)
         card.pack(fill="x", padx=6, pady=(0, 8))
         card.grid_columnconfigure(0, weight=1)

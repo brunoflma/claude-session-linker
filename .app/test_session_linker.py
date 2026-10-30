@@ -1263,6 +1263,32 @@ class RobustnessRegressionTests(unittest.TestCase):
                 self.assertTrue((target_workspace / session["path"].name).exists())
                 self.assertTrue((leftover / "audit.jsonl").exists())
 
+    def test_cowork_link_never_writes_through_symlinks_in_leftover_dir(self):
+        # A residual destination folder may hold a nested directory symlink;
+        # merging into it would follow the link and overwrite files outside
+        # the workspace. The copy must land in a fresh tree instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            with isolated_cowork_link(tmp) as (module, session, target_workspace):
+                (session["data_dir"] / "uploads").mkdir()
+                (session["data_dir"] / "uploads" / "victim.txt").write_text("from source", encoding="utf-8")
+                outside = Path(tmp) / "outside"
+                outside.mkdir()
+                (outside / "victim.txt").write_text("protected", encoding="utf-8")
+                leftover = target_workspace / session["data_dir"].name
+                leftover.mkdir()
+                try:
+                    (leftover / "uploads").symlink_to(outside, target_is_directory=True)
+                except (OSError, NotImplementedError):
+                    self.skipTest("Symlinks not supported in environment")
+
+                ok, message = module.link_cowork_session_to_account(session, ACCOUNT_B)
+
+                self.assertTrue(ok, message)
+                self.assertEqual((outside / "victim.txt").read_text(encoding="utf-8"), "protected")
+                self.assertFalse((leftover / "uploads").is_symlink())
+                self.assertEqual((leftover / "uploads" / "victim.txt").read_text(encoding="utf-8"), "from source")
+                self.assertEqual([p.name for p in target_workspace.iterdir() if p.name.startswith(".csl-")], [])
+
     def test_code_relink_onto_independent_copy_preserves_it_and_says_so(self):
         with tempfile.TemporaryDirectory() as tmp:
             appdata = Path(tmp) / "Roaming"
@@ -1461,6 +1487,35 @@ class IconAssetTests(unittest.TestCase):
         for size in (16, 24, 32, 48, 256):
             self.assertIn((size, size), sizes)
 
+
+
+class ModeSwitchGuiTests(unittest.TestCase):
+    def test_mode_switch_never_renders_previous_mode_sessions(self):
+        # Until the new scan arrives, a search/filter callback must not show
+        # Code sessions with Cowork actions (or the reverse).
+        try:
+            app = session_linker.SessionLinkerApp()
+        except Exception as exc:  # no display available (headless runner)
+            self.skipTest(f"Tk unavailable: {exc}")
+        try:
+            app.withdraw()
+            session = make_session("code-only", "cli-code", 10)
+            session["accountId"] = ACCOUNT_A
+            app._apply_refresh(app._refresh_generation, "code", {
+                "active": None, "sessions": {ACCOUNT_A: [session]}, "accounts": set(), "running": False,
+            }, None)
+            self.assertEqual(app._data_mode, "code")
+            self.assertTrue(any(isinstance(w, session_linker.ctk.CTkFrame) for w in app._scroll.winfo_children()))
+
+            app._set_mode("cowork")
+            app._on_filter_changed()
+            app._render_sessions()
+
+            self.assertEqual(app.sessions_by_account, {})
+            self.assertFalse(app._loaded)
+            self.assertFalse(any(isinstance(w, session_linker.ctk.CTkFrame) for w in app._scroll.winfo_children()))
+        finally:
+            app.destroy()
 
 if __name__ == "__main__":
     unittest.main()

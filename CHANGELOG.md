@@ -19,7 +19,7 @@
 
 - Contas que já abriram Code ou Cowork, mas ainda não têm sessões, passam a aparecer e podem receber vínculos.
 - Falha ao criar o backup de um vínculo Cowork não deixa mais o diálogo travado em "Aguarde...".
-- Uma pasta Cowork residual de uma cópia interrompida não impede mais um novo vínculo.
+- Uma pasta Cowork residual de uma cópia interrompida não impede mais um novo vínculo. A cópia é feita em uma pasta temporária nova dentro do workspace e só depois substitui a residual (já incluída no backup), sem nunca seguir links simbólicos dela.
 - Revincular uma sessão Code a uma conta que já tem cópia independente informa que nada foi sobrescrito, em vez de relatar uma atualização.
 - Erros em tarefas de segundo plano são registrados e exibidos; a lista não fica mais presa em "Carregando" quando uma pasta não pode ser lida.
 - Índices com título, data ou ID em formato inesperado não interrompem mais a leitura de todas as sessões.
