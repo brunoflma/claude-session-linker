@@ -6,7 +6,7 @@ Este guia é exclusivo para Windows 10 e Windows 11.
 
 - Claude Desktop instalado.
 - Pelo menos duas contas Claude já usadas nesse computador.
-- Python 3.11 ou superior.
+- Python 3.11 a 3.15 (recomendado: a versão estável mais recente).
 - PowerShell, já incluído no Windows.
 
 O setup instala `customtkinter`, `darkdetect` e `pillow` automaticamente em um ambiente isolado.
@@ -40,10 +40,10 @@ O setup cria `.app\venv` e registra o resultado em `.app\logs\setup-result.txt`.
 ## 4. Vincular uma sessão
 
 1. Dê duplo clique em `Claude Session Linker.vbs`.
-2. Escolha a aba `Code` ou `Cowork`.
-3. Localize a sessão na conta de origem.
-4. Clique em `Vincular conta`.
-5. Escolha a conta de destino.
+2. Escolha `Code` ou `Cowork` no seletor da barra lateral.
+3. Localize a sessão: clique na conta de origem ou use a busca (título, pasta, conta ou ID).
+4. Clique em `Vincular a outra conta`.
+5. Escolha a conta de destino e confirme em `Vincular`. Contas que ainda não têm sessões também aparecem como destino.
 6. Reabra o Claude Desktop na conta de destino.
 
 Em `Code`, um novo vínculo copia o índice e clona o transcript local para que as contas possam continuar a conversa de forma independente. Em `Cowork`, o índice e a pasta local da conversa são copiados.

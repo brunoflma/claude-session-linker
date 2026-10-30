@@ -34,14 +34,14 @@ End If
 objShell.Run Chr(34) & pywExe & Chr(34) & " " & Chr(34) & guiPy & Chr(34), 1, False
 
 Function FindPythonw()
-    Dim bases(1), vers(7), b, v, dir, cand
+    Dim bases(1), vers(9), b, v, dir, cand
     bases(0) = "HKLM\SOFTWARE\Python\PythonCore\"
     bases(1) = "HKCU\SOFTWARE\Python\PythonCore\"
-    vers(0)="3.14" : vers(1)="3.13" : vers(2)="3.12" : vers(3)="3.11"
-    vers(4)="3.14-64" : vers(5)="3.13-64" : vers(6)="3.12-64" : vers(7)="3.11-64"
+    vers(0)="3.15" : vers(1)="3.14" : vers(2)="3.13" : vers(3)="3.12" : vers(4)="3.11"
+    vers(5)="3.15-64" : vers(6)="3.14-64" : vers(7)="3.13-64" : vers(8)="3.12-64" : vers(9)="3.11-64"
 
     For b = 0 To 1
-        For v = 0 To 7
+        For v = 0 To 9
             On Error Resume Next
             dir = objShell.RegRead(bases(b) & vers(v) & "\InstallPath\")
             If Err.Number = 0 And Len(Trim(dir)) > 0 Then
@@ -58,7 +58,9 @@ Function FindPythonw()
         Next
     Next
 
-    Dim fb(9), i
+    Dim fb(11), i
+    fb(10) = "C:\Python315\pythonw.exe"
+    fb(11) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python315\pythonw.exe"
     fb(0) = "C:\Python314\pythonw.exe"
     fb(1) = "C:\Python313\pythonw.exe"
     fb(2) = "C:\Python312\pythonw.exe"
@@ -70,7 +72,7 @@ Function FindPythonw()
     fb(8) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python311\pythonw.exe"
     fb(9) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python310\pythonw.exe"
 
-    For i = 0 To 9
+    For i = 0 To 11
         If objFSO.FileExists(fb(i)) Then
             FindPythonw = fb(i)
             Exit Function

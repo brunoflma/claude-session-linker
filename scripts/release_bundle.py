@@ -14,7 +14,7 @@ VERSION_RE = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)')
 COMMON = (
     '.app/VERSION', '.app/session_linker.py', '.app/requirements.txt',
     '.app/icon.ico', '.app/icon.png', 'README.md', 'GUIA.md',
-    'GUIA-WINDOWS.md', 'GUIA-MACOS.md', 'docs/cover.svg',
+    'GUIA-WINDOWS.md', 'GUIA-MACOS.md', 'docs/cover.svg', 'docs/assets/app-preview.png',
 )
 PLATFORM_FILES = {
     'windows': ('00 - Setup Claude Session Linker.vbs', 'Claude Session Linker.vbs',

@@ -4,3 +4,6 @@
 customtkinter==6.0.0
 darkdetect==0.8.0
 pillow==13.0.0
+# Transitive (required by customtkinter); pinned so every install and release
+# package resolves the same set. All four support Python 3.11-3.15.
+packaging==26.3

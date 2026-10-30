@@ -31,6 +31,19 @@
 - O setup recria automaticamente um `.app/venv` montado com Python anterior ao 3.11, e o atalho do Windows não recorre mais a Python 3.9 ou 3.10.
 - Scripts do macOS traduzidos para o português, como o restante do aplicativo.
 
+### Dependências e Python
+
+- Dependências revisadas: customtkinter 6.0.0, darkdetect 0.8.0 e Pillow 13.0.0 já são as versões mais recentes. A dependência transitiva `packaging` passa a ser fixada (26.3), para que toda instalação e todo pacote resolvam o mesmo conjunto.
+- Suporte declarado ao Python 3.11 a 3.15: o Pillow 13 publica binários para 3.15 no Windows e no macOS. Os atalhos e o setup procuram o 3.15 primeiro, e o CI ganha execuções com 3.15 no Windows e no macOS Apple Silicon. O mínimo continua 3.11, exigido pelo Pillow 13.
+- Verificação do site no CI passa a usar Node.js 24.
+
+### Site e repositório
+
+- Site redesenhado no mesmo visual do aplicativo, com uma réplica ilustrativa da janela no topo, cartões, faixa escura na demonstração e o novo ícone; guias de instalação no mesmo padrão.
+- Nova imagem de prévia social, capa do README e captura da interface com dados fictícios, incluída também nos pacotes.
+- README reorganizado, com instalação, fluxo de uso, atalhos, requisitos, estrutura do repositório e comandos de desenvolvimento. Guias em Markdown atualizados com os novos nomes dos botões.
+- Corrigido no site: palavras coladas nos cartões em telas estreitas e uma frase sobre o Finder do macOS que aparecia no guia do Windows.
+
 ### Desempenho e manutenção
 
 - O registro de erros passou a anexar linhas em vez de regravar o arquivo inteiro a cada mensagem (de cerca de 3 ms para 0,007 ms por linha com um log de 4 MB), mantendo a proteção contra links simbólicos também no Windows.

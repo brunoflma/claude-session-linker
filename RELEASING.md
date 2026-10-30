@@ -30,7 +30,7 @@ git diff --check
 
 Use um ambiente Python com as dependências de `.app/requirements.txt`. Os testes não exigem conversas reais. Para limitar a descoberta inicial a uma pasta de teste, configure `CLAUDE_SESSION_LINKER_CLAUDE_DIR` para uma pasta temporária vazia.
 
-Depois de revisar o diff, publique a branch e aguarde `Validate application`. A matriz cobre Windows com Python 3.11 e 3.14, além de macOS Intel e Apple Silicon com Python 3.14. Os runners abrem o aplicativo extraído com um perfil sintético; isso não substitui uma verificação manual com versões específicas do Claude Desktop.
+Depois de revisar o diff, publique a branch e aguarde `Validate application`. A matriz cobre Windows com Python 3.11, 3.14 e 3.15, macOS Intel com Python 3.14 e macOS Apple Silicon com Python 3.14 e 3.15. Os runners abrem o aplicativo extraído com um perfil sintético; isso não substitui uma verificação manual com versões específicas do Claude Desktop.
 
 ## Criar a tag
 
