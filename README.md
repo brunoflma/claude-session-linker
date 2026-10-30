@@ -4,6 +4,7 @@
   <a href="https://github.com/brunoflma/claude-session-linker/releases/latest"><img alt="Última release" src="https://img.shields.io/github/v/release/brunoflma/claude-session-linker?label=release&color=c15f3c"></a>
   <img alt="Windows e macOS" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS-1e1f22">
   <img alt="Python 3.11 a 3.15" src="https://img.shields.io/badge/Python-3.11%20a%203.15-57534c">
+  <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-2e7d4f"></a>
 </p>
 
 <p align="center">
@@ -99,6 +100,7 @@ Projeto independente, sem vínculo com a Anthropic. Mantenha os backups e confir
 | `docs/` | Site do projeto (GitHub Pages), capa e prompt de instalação. |
 | `scripts/` | Empacotamento verificável, publicação, checagens do site e da prévia social. |
 | `.github/workflows/` | Validação em Windows e macOS, publicação por tag e checagem do site. |
+| `LICENSE` | Licença MIT, também incluída nos pacotes. |
 
 ### Desenvolvimento
 
@@ -117,6 +119,10 @@ python scripts/verify-site.py
 ```
 
 Os testes usam perfis sintéticos e não acessam conversas reais. Para limitar a descoberta a uma pasta de teste, defina `CLAUDE_SESSION_LINKER_CLAUDE_DIR`. Novas versões seguem o [processo de publicação](RELEASING.md) e o [changelog](CHANGELOG.md); a branch `main` pode conter desenvolvimento ainda não publicado.
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE). © 2026 Bruno Ferreira. Claude e Claude Desktop são marcas da Anthropic; este projeto é independente.
 
 ## Ajuda e contribuições
 

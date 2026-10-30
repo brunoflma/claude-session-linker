@@ -41,6 +41,7 @@
 
 - Site redesenhado no mesmo visual do aplicativo, com uma réplica ilustrativa da janela no topo, cartões, faixa escura na demonstração e o novo ícone; guias de instalação no mesmo padrão.
 - Nova imagem de prévia social, capa do README e captura da interface com dados fictícios, incluída também nos pacotes.
+- Projeto licenciado sob a MIT: arquivo `LICENSE` na raiz, incluído também nos pacotes de Windows e macOS.
 - README reorganizado, com instalação, fluxo de uso, atalhos, requisitos, estrutura do repositório e comandos de desenvolvimento. Guias em Markdown atualizados com os novos nomes dos botões.
 - Corrigido no site: palavras coladas nos cartões em telas estreitas e uma frase sobre o Finder do macOS que aparecia no guia do Windows.
 

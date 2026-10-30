@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)')
 COMMON = (
     '.app/VERSION', '.app/session_linker.py', '.app/requirements.txt',
-    '.app/icon.ico', '.app/icon.png', 'README.md', 'GUIA.md',
+    '.app/icon.ico', '.app/icon.png', 'README.md', 'LICENSE', 'GUIA.md',
     'GUIA-WINDOWS.md', 'GUIA-MACOS.md', 'docs/cover.svg', 'docs/assets/app-preview.png',
 )
 PLATFORM_FILES = {
