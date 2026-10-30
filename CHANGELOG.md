@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.2.0] - 2026-10-30
+
+### Interface
+
+- Visual redesenhado: barra lateral escura com marca, seletor Code/Cowork segmentado e contas com avatar, área de trabalho clara com cartões mais compactos e uma única cor de destaque.
+- Busca instantânea por título, pasta do projeto, conta ou ID (Ctrl+F; Esc limpa) e opção para ocultar sessões arquivadas, que agora aparecem marcadas.
+- Lista paginada (40 sessões por vez), mantendo a janela leve em perfis com centenas de conversas.
+- Datas relativas ("há 3 h", "ontem"), nome curto do projeto e caminho completo em dica de contexto; clique copia o caminho.
+- Aviso de Claude Desktop aberto em faixa visível no topo, com botão para verificar novamente; atalho F5 para atualizar.
+- Diálogos de vínculo, remoção, comparação e renomeação reorganizados, com mensagens de estado coloridas e textos mais claros.
+- Botão para abrir a pasta de backups. Fontes nativas no Windows e no macOS; emojis removidos dos controles.
+
+### Correções
+
+- Contas que já abriram Code ou Cowork, mas ainda não têm sessões, passam a aparecer e podem receber vínculos.
+- Falha ao criar o backup de um vínculo Cowork não deixa mais o diálogo travado em "Aguarde...".
+- Uma pasta Cowork residual de uma cópia interrompida não impede mais um novo vínculo.
+- Revincular uma sessão Code a uma conta que já tem cópia independente informa que nada foi sobrescrito, em vez de relatar uma atualização.
+- Erros em tarefas de segundo plano são registrados e exibidos; a lista não fica mais presa em "Carregando" quando uma pasta não pode ser lida.
+- Índices com título, data ou ID em formato inesperado não interrompem mais a leitura de todas as sessões.
+- O texto do aviso de possível duplicata não desaparece mais ao passar o mouse; cópias vinculadas diretamente não são mais apontadas como duplicatas.
+- A transcrição recém-clonada é encontrada imediatamente após o vínculo.
+- Falha ao gravar nomes de contas é informada no diálogo e não interrompe a interface.
+
 ## [2.1.8] - 2026-10-27
 
 ### Segurança
