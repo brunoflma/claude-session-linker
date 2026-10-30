@@ -17,19 +17,19 @@
 .guide-index>span{display:block;margin-bottom:12px}
 .guide-index nav{display:grid;gap:2px}
 .guide-index a{font-size:13px;font-weight:600;color:var(--ink2);padding:8px 12px;border-radius:8px;border-left:0}
-.guide-index a:hover{color:var(--accent);background:var(--accent-soft)}
+.guide-index a:hover{color:var(--accent-text);background:var(--accent-soft)}
 .guide-index .agent-shortcut{color:var(--rail-txt);background:var(--rail);margin-top:20px;border-radius:12px;padding:14px 16px;display:block;line-height:1.6;font-size:12px}
 .guide-index .agent-shortcut:hover{background:var(--rail3);color:#fff}
 .guide-content{min-width:0}
 
 .guide-step{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:32px;margin-bottom:18px;scroll-margin-top:96px;box-shadow:var(--shadow)}
 .guide-step h2{font-size:27px;line-height:1.2;margin-bottom:18px}
-.guide-step .step-label{display:inline-block;font:700 11px var(--mono);letter-spacing:1.2px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 9px;margin-bottom:14px}
+.guide-step .step-label{display:inline-block;font:700 11px var(--mono);letter-spacing:1.2px;color:var(--accent-text);background:var(--accent-soft);border-radius:6px;padding:3px 9px;margin-bottom:14px}
 .guide-step p,.guide-step li{font-size:15px;color:var(--ink2)}
 .guide-step p+p{margin-top:14px}
 .guide-step li+li{margin-top:10px}
 .guide-step strong{color:var(--ink)}
-.guide-step a:not(.button){color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+.guide-step a:not(.button){color:var(--accent-text);text-decoration:underline;text-underline-offset:4px}
 .guide-step h3{font-size:19px;margin:24px 0 12px}
 .guide-step ol,.guide-step ul{margin-block:18px}
 .guide-step .button{margin-top:18px}
@@ -45,7 +45,7 @@
 .guide-command pre{font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;padding:16px 18px;margin:0;color:var(--rail-txt)}
 
 .guide-details{border-top:1px solid var(--line);margin-top:20px;padding-top:14px}
-.guide-details summary{cursor:pointer;color:var(--accent);font-size:14px;font-weight:700}
+.guide-details summary{cursor:pointer;color:var(--accent-text);font-size:14px;font-weight:700}
 .guide-details>div{padding-top:14px}
 .guide-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin-block:22px}
 .guide-table{border-collapse:collapse;width:100%;font-size:14px;text-align:left}
@@ -59,16 +59,16 @@
 .guide-faq>h2{font-size:30px;margin-bottom:18px}
 .guide-faq details{border-top:1px solid var(--line)}
 .guide-faq summary{padding:17px 0;cursor:pointer;font-size:15px;font-weight:700}
-.guide-faq details[open] summary{color:var(--accent)}
+.guide-faq details[open] summary{color:var(--accent-text)}
 .guide-faq p{font-size:14px;color:var(--ink2);padding:0 0 17px}
-.guide-faq a{color:var(--accent)}
+.guide-faq a{color:var(--accent-text)}
 .guide-finish{background:var(--rail);color:var(--rail-txt);padding:34px;border-radius:18px}
 .guide-finish h2{font-size:29px;color:var(--rail-txt)}
 .guide-finish p:not(.eyebrow){color:var(--rail-txt2);font-size:15px;margin:16px 0 22px}
 .guide-finish .actions{gap:12px}
 .guide-finish .button.secondary{background:transparent;color:var(--rail-txt);border-color:var(--rail-line)}
-.guide-footer{display:flex;justify-content:space-between;gap:20px;padding-block:28px;border-top:1px solid var(--line);font-size:13px;color:var(--ink3)}
-.guide-footer a{color:var(--accent);font-weight:700}
+.guide-footer{display:flex;justify-content:space-between;gap:20px;padding-block:28px;font-size:13px;color:var(--ink3)}
+.guide-footer a{color:var(--accent-text);font-weight:700}
 
 @media(max-width:900px){.guide-grid{grid-template-columns:170px minmax(0,1fr);gap:26px}.guide-step{padding:26px}.guide-nav .back-link{display:none}}
 @media(max-width:700px){
