@@ -7,14 +7,14 @@ VENV_PY="$APP_DIR/venv/bin/python"
 GUI="$APP_DIR/session_linker.py"
 
 if [ ! -x "$VENV_PY" ]; then
-  echo "Python environment not found."
-  echo "Double-click '00 - Setup Claude Session Linker.command' first to create it."
-  read -r -p "Press Enter to close" _
+  echo "Ambiente Python não encontrado."
+  echo "Dê duplo clique em '00 - Setup Claude Session Linker.command' para criá-lo."
+  read -r -p "Pressione Enter para fechar" _
   exit 1
 fi
 if [ ! -f "$GUI" ]; then
-  echo "GUI not found at: $GUI"
-  read -r -p "Press Enter to close" _
+  echo "Interface não encontrada em: $GUI"
+  read -r -p "Pressione Enter para fechar" _
   exit 1
 fi
 exec "$VENV_PY" "$GUI"

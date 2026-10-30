@@ -27,18 +27,18 @@ MIN_MAJOR=3
 MIN_MINOR=11
 
 if ! mkdir -p "$LOG_DIR" 2>/dev/null; then
-  echo "Could not create .app/logs. Move the project to a writable folder and retry."
-  if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Press Enter to close" _; fi
+  echo "Não foi possível criar .app/logs. Mova o projeto para uma pasta gravável e tente de novo."
+  if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Pressione Enter para fechar" _; fi
   exit 6
 fi
 
 finish() {
   local code="$1"; local msg="$2"
   printf "STATUS=%s\n%s\n" "$code" "$msg" > "$RESULT" 2>/dev/null || \
-    echo "Warning: could not write .app/logs/setup-result.txt"
+    echo "Aviso: não foi possível gravar .app/logs/setup-result.txt"
   echo ""
   echo "$msg"
-  if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Press Enter to close" _; fi
+  if [ "$PAUSE_ON_EXIT" -eq 1 ]; then read -r -p "Pressione Enter para fechar" _; fi
   exit "$code"
 }
 
@@ -52,7 +52,7 @@ py_has_tk() {
 }
 
 VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo 0.0.0)"
-echo "Claude Session Linker $VERSION - configuring environment (macOS)..."
+echo "Claude Session Linker $VERSION - configurando ambiente (macOS)..."
 
 # --- 1. Find a 3.11+ interpreter (prefer newest) ----------------------------
 PYTHON=""
@@ -62,50 +62,59 @@ for cand in python3.15 python3.14 python3.13 python3.12 python3.11 python3; do
   if py_version_ok "$path"; then PYTHON="$path"; break; fi
 done
 if [ -z "$PYTHON" ]; then
-  finish 2 "Python $MIN_MAJOR.$MIN_MINOR+ not found. Install it (e.g. 'brew install python@3.13') and retry."
+  finish 2 "Python $MIN_MAJOR.$MIN_MINOR+ não encontrado. Instale-o (por exemplo, 'brew install python@3.13' ou pelo python.org) e tente de novo."
 fi
-echo "Python found: $PYTHON"
+echo "Python encontrado: $PYTHON"
 
 # --- 2. Ensure tkinter; install python-tk via Homebrew if missing -----------
 if ! py_has_tk "$PYTHON"; then
-  echo "tkinter missing for $PYTHON; attempting to install via Homebrew..."
+  echo "tkinter ausente em $PYTHON; tentando instalar pelo Homebrew..."
   if ! command -v brew >/dev/null 2>&1; then
-    finish 2 "tkinter is missing and Homebrew is not installed. Install Homebrew (https://brew.sh) then run 'brew install python-tk', or install Python from python.org, and retry."
+    finish 2 "tkinter ausente e Homebrew não instalado. Instale o Homebrew (https://brew.sh) e rode 'brew install python-tk', ou instale o Python pelo python.org, e tente de novo."
   fi
   MM="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
   brew install "python-tk@$MM" || brew install python-tk || true
   if ! py_has_tk "$PYTHON"; then
-    finish 2 "Could not enable tkinter for $PYTHON. Try 'brew install python-tk@$MM' manually, or install Python from python.org, then retry."
+    finish 2 "Não foi possível habilitar o tkinter em $PYTHON. Rode 'brew install python-tk@$MM' manualmente ou instale o Python pelo python.org e tente de novo."
   fi
 fi
 echo "tkinter OK"
 
+# --- 3a. An existing venv built on an older/removed Python is rebuilt -------
+if [ -x "$VENV/bin/python" ] && ! py_version_ok "$VENV/bin/python"; then
+  echo "O venv existente usa um Python anterior ao $MIN_MAJOR.$MIN_MINOR; recriando..."
+  RECREATE_VENV=1
+fi
+
 # --- 3. (Re)create the venv -------------------------------------------------
 if [ "$RECREATE_VENV" -eq 1 ] && [ -d "$VENV" ]; then
-  echo "Recreating isolated venv in .app/venv ..."
-  rm -rf "$VENV" || finish 6 "Could not remove .app/venv. Close the app and retry."
+  echo "Recriando o venv isolado em .app/venv ..."
+  rm -rf "$VENV" || finish 6 "Não foi possível remover .app/venv. Feche o aplicativo e tente de novo."
 fi
 if [ -d "$VENV" ] && [ ! -x "$VENV/bin/python" ]; then
-  echo "Existing venv is incomplete; recreating..."
-  rm -rf "$VENV" || finish 6 "Could not recreate .app/venv. Close open Python processes and retry."
+  echo "O venv existente está incompleto; recriando..."
+  rm -rf "$VENV" || finish 6 "Não foi possível recriar .app/venv. Feche processos Python abertos e tente de novo."
 fi
 if [ ! -d "$VENV" ]; then
-  "$PYTHON" -m venv "$VENV" || finish 3 "Failed to create the venv in .app/venv."
+  echo "Criando venv isolado em .app/venv ..."
+  "$PYTHON" -m venv "$VENV" || finish 3 "Falha ao criar o venv em .app/venv."
 fi
 VENV_PY="$VENV/bin/python"
 if [ ! -x "$VENV_PY" ]; then
-  finish 3 "Failed to create a working venv interpreter in .app/venv."
+  finish 3 "O venv foi criado, mas o interpretador em .app/venv não funciona."
 fi
 
 # --- 4. Install dependencies -------------------------------------------------
+echo "Instalando dependencias..."
 "$VENV_PY" -m pip install --upgrade pip >/dev/null 2>&1 || true
 if ! "$VENV_PY" -m pip install -r "$REQ"; then
-  finish 4 "Failed to install dependencies from requirements.txt."
+  finish 4 "Falha ao instalar as dependências de requirements.txt. Verifique a conexão e tente de novo."
 fi
 
 # --- 5. Validate GUI imports -------------------------------------------------
+echo "Verificando import da GUI..."
 if ! "$VENV_PY" -c "import tkinter, customtkinter, darkdetect, PIL" 2>/dev/null; then
-  finish 5 "GUI dependencies could not be imported after install."
+  finish 5 "As dependências foram instaladas, mas a interface não pôde ser importada."
 fi
 
-finish 0 "Setup complete. Launch with 'Claude Session Linker.command'."
+finish 0 "Ambiente pronto. Abra com 'Claude Session Linker.command'."

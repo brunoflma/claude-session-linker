@@ -1,10 +1,8 @@
 import importlib.util
 import os
-import subprocess
-import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, MagicMock
 
 APP_DIR = Path(__file__).resolve().parent
 

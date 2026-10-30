@@ -1,13 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="270" viewBox="0 0 1200 270" fill="none" role="img" aria-labelledby="title desc">
-<title id="title">Claude Session Linker</title><desc id="desc">Sua conversa continua daqui. Sessões Code e Cowork entre contas no mesmo computador.</desc>
-<rect x="1" y="1" width="1198" height="268" rx="18" fill="#0b1118" stroke="#31515f"/>
-<path d="M840 1v268" stroke="#293b49"/><path d="M875 54h272M875 215h272" stroke="#293b49"/>
-<text x="37" y="44" fill="#45dfff" font-family="Consolas,monospace" font-size="13" letter-spacing="1.7">CONTINUIDADE / CLAUDE DESKTOP</text>
-<text x="34" y="115" fill="#eef3f5" font-family="'Segoe UI',sans-serif" font-size="52" font-weight="750" letter-spacing="-2">Claude Session Linker</text>
-<text x="38" y="164" fill="#c6ff5e" font-family="'Segoe UI',sans-serif" font-size="30" font-weight="650">Sua conversa continua daqui.</text>
-<text x="39" y="224" fill="#a1b2bf" font-family="Consolas,monospace" font-size="13">CODE + COWORK / NO MESMO COMPUTADOR</text>
-<rect x="882" y="80" width="114" height="105" rx="12" fill="#14232b" stroke="#31515f"/><rect x="1036" y="80" width="114" height="105" rx="12" fill="#172b23" stroke="#5a713e"/>
-<text x="939" y="125" text-anchor="middle" fill="#45dfff" font-family="Consolas,monospace" font-size="12">CONTA A</text><text x="1093" y="125" text-anchor="middle" fill="#c6ff5e" font-family="Consolas,monospace" font-size="12">CONTA B</text>
-<path d="M1008 134h16m-5-5 5 5-5 5" stroke="#c6ff5e" stroke-width="2"/>
-<path d="M909 149h61M1062 149h61M909 161h41M1062 161h41" stroke="#526a79"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" fill="none" role="img" aria-labelledby="title desc">
+<title id="title">Claude Session Linker</title>
+<desc id="desc">Sua conversa continua daqui. Encontre, vincule e compare sessões Code e Cowork entre contas no mesmo computador.</desc>
+<defs>
+  <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dd7c54"/><stop offset="1" stop-color="#a64829"/></linearGradient>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#1e1f22" flood-opacity=".16"/></filter>
+</defs>
+<rect x="1" y="1" width="1198" height="298" rx="22" fill="#f5f2ec" stroke="#e4ddd1"/>
+<g transform="translate(44 46) scale(1.125)">
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="url(#tile)"/>
+  <path d="M18 14h14a6 6 0 0 1 6 6v9a6 6 0 0 1-6 6H19l-5 5v-6.5A6 6 0 0 1 12 29v-9a6 6 0 0 1 6-6z" fill="#fff" fill-opacity=".47"/>
+  <path d="M32 27h14a6.5 6.5 0 0 1 6.5 6.5v9A6.5 6.5 0 0 1 46 49h-1v6l-6-6h-7a6.5 6.5 0 0 1-6.5-6.5v-9A6.5 6.5 0 0 1 32 27z" fill="#fff"/>
+  <g fill="none" stroke="#c15f3c" stroke-width="2.2"><circle cx="35.5" cy="38" r="4.2"/><circle cx="42.5" cy="38" r="4.2"/></g>
+</g>
+<text x="130" y="86" fill="#1e1f22" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="-.6">Claude Session Linker</text>
+<text x="131" y="110" fill="#8a8378" font-family="Consolas,Menlo,monospace" font-size="12" font-weight="700" letter-spacing="1.6">PARA CLAUDE DESKTOP</text>
+<text x="46" y="178" fill="#1e1f22" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="44" font-weight="800" letter-spacing="-1.6">Sua conversa. <tspan fill="#c15f3c">Continua daqui.</tspan></text>
+<text x="48" y="214" fill="#57534c" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="18">Encontre, vincule e compare sessões entre contas no mesmo computador.</text>
+<rect x="48" y="238" width="148" height="30" rx="8" fill="#f8e9e2"/>
+<text x="122" y="258" text-anchor="middle" fill="#c15f3c" font-family="Consolas,Menlo,monospace" font-size="12" font-weight="700" letter-spacing="1">CODE · COWORK</text>
+<rect x="206" y="238.5" width="166" height="29" rx="8" fill="#fff" stroke="#d4cbbc"/>
+<text x="289" y="258" text-anchor="middle" fill="#57534c" font-family="Consolas,Menlo,monospace" font-size="12" font-weight="700" letter-spacing="1">WINDOWS · macOS</text>
+<g filter="url(#shadow)">
+  <rect x="806" y="34" width="356" height="232" rx="14" fill="#fff" stroke="#d4cbbc"/>
+</g>
+<path d="M820 34h328a14 14 0 0 1 14 14v12H806V48a14 14 0 0 1 14-14z" fill="#ebe5db"/>
+<circle cx="824" cy="47" r="4.5" fill="#e2735f"/><circle cx="838" cy="47" r="4.5" fill="#e4b54f"/><circle cx="852" cy="47" r="4.5" fill="#6cbd76"/>
+<path d="M806 60h104v192a14 14 0 0 1-14 14H820a14 14 0 0 1-14-14z" fill="#16181c"/>
+<rect x="816" y="72" width="84" height="20" rx="5" fill="#1f2228"/><rect x="818" y="74" width="40" height="16" rx="4" fill="#c15f3c"/>
+<text x="838" y="86" text-anchor="middle" fill="#fff" font-family="'Segoe UI',Arial,sans-serif" font-size="9" font-weight="700">Code</text>
+<text x="879" y="86" text-anchor="middle" fill="#b4aea4" font-family="'Segoe UI',Arial,sans-serif" font-size="9" font-weight="600">Cowork</text>
+<rect x="814" y="104" width="88" height="30" rx="6" fill="#2a2e36"/>
+<rect x="820" y="110" width="18" height="18" rx="5" fill="#4e9a6b"/><rect x="845" y="113" width="46" height="5" rx="2.5" fill="#f3efe8"/><rect x="845" y="122" width="32" height="4" rx="2" fill="#5fbf7f"/>
+<rect x="820" y="146" width="18" height="18" rx="5" fill="#3e7cb1"/><rect x="845" y="149" width="40" height="5" rx="2.5" fill="#f3efe8"/><rect x="845" y="158" width="28" height="4" rx="2" fill="#7f8790"/>
+<path d="M910 60h252v192a14 14 0 0 1-14 14H910z" fill="#f5f2ec"/>
+<rect x="924" y="74" width="110" height="9" rx="4.5" fill="#1e1f22"/>
+<g>
+  <rect x="924" y="96" width="224" height="46" rx="8" fill="#fff" stroke="#e4ddd1"/>
+  <rect x="936" y="108" width="104" height="6" rx="3" fill="#1e1f22"/><rect x="936" y="121" width="70" height="5" rx="2.5" fill="#8a8378"/>
+  <rect x="1094" y="108" width="44" height="18" rx="5" fill="#c15f3c"/>
+</g>
+<g>
+  <rect x="924" y="150" width="224" height="46" rx="8" fill="#fff" stroke="#e4ddd1"/>
+  <rect x="936" y="162" width="84" height="6" rx="3" fill="#1e1f22"/><rect x="936" y="175" width="58" height="5" rx="2.5" fill="#8a8378"/>
+  <rect x="1094" y="162" width="44" height="18" rx="5" fill="#c15f3c"/>
+</g>
+<g>
+  <rect x="924" y="204" width="224" height="46" rx="8" fill="#fff" stroke="#e4ddd1"/>
+  <rect x="936" y="216" width="96" height="6" rx="3" fill="#1e1f22"/><rect x="936" y="229" width="64" height="5" rx="2.5" fill="#8a8378"/>
+  <rect x="1094" y="216" width="44" height="18" rx="5" fill="#c15f3c"/>
+</g>
 </svg>

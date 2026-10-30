@@ -66,7 +66,7 @@ function Test-PythonVersion([string]$pythonCommand, [string[]]$arguments) {
 function Find-Python {
     $py = Get-Command "py" -ErrorAction SilentlyContinue
     if ($py) {
-        foreach ($ver in @("3.14", "3.13", "3.12", "3.11")) {
+        foreach ($ver in @("3.15", "3.14", "3.13", "3.12", "3.11")) {
             $arg = "-$ver"
             if (Test-PythonVersion $py.Source @($arg)) {
                 return @{ Command = $py.Source; Arguments = @($arg) }
@@ -78,7 +78,7 @@ function Find-Python {
     $python = Get-Command "python" -ErrorAction SilentlyContinue
     if ($python) { $candidates += $python.Source }
 
-    foreach ($ver in @("314", "313", "312", "311", "310")) {
+    foreach ($ver in @("315", "314", "313", "312", "311")) {
         $path = "C:\Python$ver\python.exe"
         if (Test-Path $path) { $candidates += $path }
     }
@@ -118,6 +118,14 @@ if ($RecreateVenv -and (Test-Path $venv)) {
 }
 
 $venvPy = Join-Path $venv "Scripts\python.exe"
+if ((Test-Path $venvPy) -and -not (Test-PythonVersion $venvPy @())) {
+    Write-Host "venv existente usa um Python anterior ao $minMajor.$minMinor; recriando..."
+    try {
+        Remove-Item -LiteralPath $venv -Recurse -Force
+    } catch {
+        Finish 6 "Nao foi possivel recriar .app\venv. Feche processos Python abertos e tente novamente."
+    }
+}
 if ((Test-Path $venv) -and -not (Test-Path $venvPy)) {
     Write-Host "venv existente esta incompleto; recriando..."
     try {

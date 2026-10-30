@@ -1210,5 +1210,312 @@ class MacDiscoveryTests(unittest.TestCase):
                 pass
 
 
+ACCOUNT_A = "11111111-2222-3333-4444-555555555555"
+ACCOUNT_B = "66666666-7777-8888-9999-000000000000"
+
+
+@contextmanager
+def isolated_cowork_link(tmp: str):
+    """One Claude root with a source account and an empty target workspace."""
+    appdata = Path(tmp) / "Roaming"
+    localappdata = Path(tmp) / "Local"
+    root = appdata / "Claude"
+    source_path, source_data_dir = write_cowork_session(root, ACCOUNT_A, "ws-a", "source", "cli-source", 20)
+    target_workspace = root / "local-agent-mode-sessions" / ACCOUNT_B / "ws-b"
+    target_workspace.mkdir(parents=True)
+    (root / "config.json").write_text("{}", encoding="utf-8")
+    module = load_session_linker_with_env(appdata, localappdata)
+    module.LINKS_FILE = Path(tmp) / "session_links.json"
+    module.BACKUPS_DIR = Path(tmp) / "backups"
+    module.BACKUPS_DIR.mkdir()
+    session = {
+        "path": source_path,
+        "data_dir": source_data_dir,
+        "accountId": ACCOUNT_A,
+        "originAccount": None,
+        "linkedFromAccount": None,
+    }
+    yield module, session, target_workspace
+
+
+class RobustnessRegressionTests(unittest.TestCase):
+    def test_cowork_link_reports_backup_failure_instead_of_raising(self):
+        # The backup used to run outside the try block: an exception killed the
+        # worker thread and left the link dialog stuck on "Aguarde...".
+        with tempfile.TemporaryDirectory() as tmp:
+            with isolated_cowork_link(tmp) as (module, session, target_workspace):
+                with patch.object(module, "backup_dir_tree", side_effect=OSError("disk full")):
+                    ok, message = module.link_cowork_session_to_account(session, ACCOUNT_B)
+                self.assertFalse(ok)
+                self.assertIn("disk full", message)
+                self.assertFalse((target_workspace / session["path"].name).exists())
+
+    def test_cowork_link_completes_leftover_data_dir_without_index(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with isolated_cowork_link(tmp) as (module, session, target_workspace):
+                leftover = target_workspace / session["data_dir"].name
+                leftover.mkdir()
+                (leftover / "partial.txt").write_text("from an interrupted copy", encoding="utf-8")
+
+                ok, message = module.link_cowork_session_to_account(session, ACCOUNT_B)
+
+                self.assertTrue(ok, message)
+                self.assertTrue((target_workspace / session["path"].name).exists())
+                self.assertTrue((leftover / "audit.jsonl").exists())
+
+    def test_cowork_link_never_writes_through_symlinks_in_leftover_dir(self):
+        # A residual destination folder may hold a nested directory symlink;
+        # merging into it would follow the link and overwrite files outside
+        # the workspace. The copy must land in a fresh tree instead.
+        with tempfile.TemporaryDirectory() as tmp:
+            with isolated_cowork_link(tmp) as (module, session, target_workspace):
+                (session["data_dir"] / "uploads").mkdir()
+                (session["data_dir"] / "uploads" / "victim.txt").write_text("from source", encoding="utf-8")
+                outside = Path(tmp) / "outside"
+                outside.mkdir()
+                (outside / "victim.txt").write_text("protected", encoding="utf-8")
+                leftover = target_workspace / session["data_dir"].name
+                leftover.mkdir()
+                try:
+                    (leftover / "uploads").symlink_to(outside, target_is_directory=True)
+                except (OSError, NotImplementedError):
+                    self.skipTest("Symlinks not supported in environment")
+
+                ok, message = module.link_cowork_session_to_account(session, ACCOUNT_B)
+
+                self.assertTrue(ok, message)
+                self.assertEqual((outside / "victim.txt").read_text(encoding="utf-8"), "protected")
+                self.assertFalse((leftover / "uploads").is_symlink())
+                self.assertEqual((leftover / "uploads" / "victim.txt").read_text(encoding="utf-8"), "from source")
+                self.assertEqual([p.name for p in target_workspace.iterdir() if p.name.startswith(".csl-")], [])
+
+    def test_code_relink_onto_independent_copy_preserves_it_and_says_so(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            source_path = write_code_session(root, ACCOUNT_A, "ws-a", "source", "cli-source", 20)
+            dest_path = write_code_session(root, ACCOUNT_B, "ws-b", "source", "cli-independent", 30)
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+            module.LINKS_FILE = Path(tmp) / "session_links.json"
+            module.BACKUPS_DIR = Path(tmp) / "backups"
+            module.BACKUPS_DIR.mkdir()
+            session = {"path": source_path, "accountId": ACCOUNT_A, "cliSessionId": "cli-source"}
+
+            ok, message = module.link_session_to_account(session, ACCOUNT_B)
+
+            self.assertTrue(ok, message)
+            self.assertIn("cópia independente", message)
+            self.assertEqual(json.loads(dest_path.read_text(encoding="utf-8"))["cliSessionId"], "cli-independent")
+
+    def test_scan_tolerates_malformed_index_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            write_code_session(root, ACCOUNT_A, "ws-a", "good", "cli-good", 20)
+            odd = root / "claude-code-sessions" / ACCOUNT_A / "ws-a" / "local_odd.json"
+            odd.write_text(json.dumps({"title": None, "lastActivityAt": "2026-01-02T03:04:05Z", "cliSessionId": None}), encoding="utf-8")
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            sessions = module.scan_sessions()[ACCOUNT_A]
+
+            odd_session = next(s for s in sessions if s["path"] == odd)
+            self.assertEqual(odd_session["title"], "(sem título)")
+            self.assertEqual(odd_session["cliSessionId"], "")
+            self.assertGreater(odd_session["lastActivityAt"], 20)
+
+    def test_scan_account_ids_includes_empty_accounts_and_skips_helper_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            write_code_session(root, ACCOUNT_A, "ws-a", "source", "cli-source", 20)
+            (root / "local-agent-mode-sessions" / ACCOUNT_B / "ws-empty").mkdir(parents=True)
+            (root / "local-agent-mode-sessions" / "skills-plugin" / "workspace").mkdir(parents=True)
+            (root / "claude-code-sessions" / "77777777-7777-7777-7777-777777777777").mkdir(parents=True)
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            self.assertEqual(module.scan_account_ids(), {ACCOUNT_A, ACCOUNT_B})
+
+    def test_transcript_cache_sees_a_clone_immediately(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            projects = Path(tmp) / "projects"
+            (projects / "p").mkdir(parents=True)
+            original = session_linker.CLAUDE_PROJECTS_DIR
+            session_linker.CLAUDE_PROJECTS_DIR = projects
+            try:
+                self.assertIsNone(session_linker.find_transcript_path("new-id"))
+                (projects / "p" / "new-id.jsonl").write_text("{}", encoding="utf-8")
+                session_linker.invalidate_transcript_cache()
+                self.assertEqual(session_linker.find_transcript_path("new-id"), projects / "p" / "new-id.jsonl")
+            finally:
+                session_linker.CLAUDE_PROJECTS_DIR = original
+                session_linker.invalidate_transcript_cache()
+
+
+class PresentationHelperTests(unittest.TestCase):
+    def test_coerce_ms(self):
+        self.assertEqual(session_linker._coerce_ms(1500), 1500)
+        self.assertEqual(session_linker._coerce_ms("1500"), 1500)
+        self.assertEqual(session_linker._coerce_ms(None), 0)
+        self.assertEqual(session_linker._coerce_ms(True), 0)
+        self.assertEqual(session_linker._coerce_ms(-5), 0)
+        self.assertEqual(session_linker._coerce_ms("not a date"), 0)
+        self.assertEqual(session_linker._coerce_ms("1970-01-01T00:00:01Z"), 1000)
+
+    def test_fmt_relative(self):
+        from datetime import datetime, timedelta
+        now = datetime(2026, 10, 30, 15, 0)
+        ms = lambda dt: int(dt.timestamp() * 1000)
+        self.assertEqual(session_linker.fmt_relative(0, now), "sem data")
+        self.assertEqual(session_linker.fmt_relative(ms(now - timedelta(seconds=20)), now), "agora")
+        self.assertEqual(session_linker.fmt_relative(ms(now - timedelta(minutes=12)), now), "há 12 min")
+        self.assertEqual(session_linker.fmt_relative(ms(now - timedelta(hours=3)), now), "há 3 h")
+        self.assertEqual(session_linker.fmt_relative(ms(now - timedelta(days=1)), now), "ontem")
+        self.assertEqual(session_linker.fmt_relative(ms(now - timedelta(days=4)), now), "há 4 dias")
+        self.assertEqual(session_linker.fmt_relative(ms(datetime(2026, 2, 3, 10)), now), "03/02")
+        self.assertEqual(session_linker.fmt_relative(ms(datetime(2024, 2, 3, 10)), now), "03/02/2024")
+
+    def test_project_name_handles_both_separators(self):
+        self.assertEqual(session_linker.project_name(r"C:\projetos\escritorio\\"), "escritorio")
+        self.assertEqual(session_linker.project_name("/Users/me/site"), "site")
+        self.assertEqual(session_linker.project_name(""), "")
+
+    def test_session_matches_all_terms_case_insensitively(self):
+        session = make_session("Petição inicial", "abc-123", 1)
+        self.assertTrue(session_linker.session_matches(session, ""))
+        self.assertTrue(session_linker.session_matches(session, "PETIÇÃO project"))
+        self.assertTrue(session_linker.session_matches(session, "conta 2", "Conta 2"))
+        self.assertTrue(session_linker.session_matches(session, "abc-1"))
+        self.assertFalse(session_linker.session_matches(session, "petição contrato"))
+
+    def test_avatar_helpers(self):
+        self.assertEqual(session_linker.avatar_initial("Conta 2"), "C2")
+        self.assertEqual(session_linker.avatar_initial("bruno ferreira silva"), "BF")
+        self.assertEqual(session_linker.avatar_initial("—"), "?")
+        color = session_linker.avatar_color(ACCOUNT_A)
+        self.assertEqual(color, session_linker.avatar_color(ACCOUNT_A))
+        self.assertIn(color, session_linker.AVATAR_COLORS)
+
+    def test_assign_default_label_survives_unwritable_labels_file(self):
+        labels = {}
+        with patch.object(session_linker, "save_labels", side_effect=OSError("read-only")):
+            self.assertEqual(session_linker.assign_default_label("acc", labels), "Conta 1")
+        self.assertEqual(labels, {"acc": "Conta 1"})
+
+
+class SweepRegressionTests(unittest.TestCase):
+    def test_log_appends_and_rotates_past_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "error.log"
+            with patch.object(session_linker, "ERR_LOG", log), patch.object(session_linker, "LOG_MAX_BYTES", 200):
+                session_linker._log("first")
+                session_linker._log("second")
+                lines = log.read_text(encoding="utf-8").splitlines()
+                self.assertEqual(len(lines), 2)
+                self.assertTrue(lines[0].endswith("first") and lines[1].endswith("second"))
+                for i in range(10):
+                    session_linker._log(f"filler {i} " + "x" * 20)
+                rotated = log.with_name("error.log.1")
+                self.assertTrue(rotated.exists())
+                self.assertLessEqual(log.stat().st_size if log.exists() else 0, 200)
+
+    def test_log_refuses_symlinked_log_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outside = Path(tmp) / "outside.txt"
+            outside.write_text("protected", encoding="utf-8")
+            log = Path(tmp) / "error.log"
+            try:
+                log.symlink_to(outside)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symlinks not supported in environment")
+            with patch.object(session_linker, "ERR_LOG", log):
+                session_linker._log("must not land outside")
+            self.assertEqual(outside.read_text(encoding="utf-8"), "protected")
+
+    def test_ensure_default_labels_writes_once_and_fills_gaps(self):
+        labels = {"known": "Conta 1", "named": "Escritório"}
+        with patch.object(session_linker, "save_labels") as save:
+            session_linker.ensure_default_labels({"known", "named", "b-new", "a-new"}, labels)
+            session_linker.ensure_default_labels({"known", "a-new"}, labels)
+        self.assertEqual(save.call_count, 1)
+        self.assertEqual(labels["a-new"], "Conta 2")
+        self.assertEqual(labels["b-new"], "Conta 3")
+        self.assertEqual(labels["named"], "Escritório")
+
+    def test_scanners_share_shape_and_only_cowork_has_data_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            code_path = write_code_session(root, ACCOUNT_A, "ws", "code", "cli-code", 10)
+            (code_path.parent / "local_code").mkdir()  # a same-stem folder must not count for Code
+            write_cowork_session(root, ACCOUNT_A, "ws", "cowork", "cli-cowork", 20)
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            code = module.scan_sessions()[ACCOUNT_A][0]
+            cowork = module.scan_cowork_sessions()[ACCOUNT_A][0]
+
+            self.assertEqual(set(code), set(cowork))
+            self.assertIsNone(code["data_dir"])
+            self.assertEqual(cowork["data_dir"].name, "local_cowork")
+            self.assertEqual(code["sessionsDir"].name, "claude-code-sessions")
+
+    def test_scan_skips_index_that_is_not_a_json_object(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            good = write_code_session(root, ACCOUNT_A, "ws", "good", "cli", 10)
+            (good.parent / "local_list.json").write_text("[1, 2]", encoding="utf-8")
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            self.assertEqual([s["path"] for s in module.scan_sessions()[ACCOUNT_A]], [good])
+
+
+class IconAssetTests(unittest.TestCase):
+    def test_ico_carries_every_frame_up_to_256(self):
+        from PIL import Image
+        with Image.open(MODULE_PATH.with_name("icon.ico")) as ico:
+            sizes = set(ico.info["sizes"])
+        for size in (16, 24, 32, 48, 256):
+            self.assertIn((size, size), sizes)
+
+
+
+class ModeSwitchGuiTests(unittest.TestCase):
+    def test_mode_switch_never_renders_previous_mode_sessions(self):
+        # Until the new scan arrives, a search/filter callback must not show
+        # Code sessions with Cowork actions (or the reverse).
+        try:
+            app = session_linker.SessionLinkerApp()
+        except Exception as exc:  # no display available (headless runner)
+            self.skipTest(f"Tk unavailable: {exc}")
+        try:
+            app.withdraw()
+            session = make_session("code-only", "cli-code", 10)
+            session["accountId"] = ACCOUNT_A
+            app._apply_refresh(app._refresh_generation, "code", {
+                "active": None, "sessions": {ACCOUNT_A: [session]}, "accounts": set(), "running": False,
+            }, None)
+            self.assertEqual(app._data_mode, "code")
+            self.assertTrue(any(isinstance(w, session_linker.ctk.CTkFrame) for w in app._scroll.winfo_children()))
+
+            app._set_mode("cowork")
+            app._on_filter_changed()
+            app._render_sessions()
+
+            self.assertEqual(app.sessions_by_account, {})
+            self.assertFalse(app._loaded)
+            self.assertFalse(any(isinstance(w, session_linker.ctk.CTkFrame) for w in app._scroll.winfo_children()))
+        finally:
+            app.destroy()
+
 if __name__ == "__main__":
     unittest.main()
