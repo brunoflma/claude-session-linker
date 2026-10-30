@@ -14,7 +14,7 @@ appDir = rootDir & "\.app"
 guiPy = appDir & "\setup_gui.py"
 
 If Not objFSO.FileExists(guiPy) Then
-    MsgBox "Instalador não encontrado:" & vbCrLf & guiPy, vbCritical, "Claude Session Linker - Setup"
+    MsgBox "Instalador n" & ChrW(227) & "o encontrado:" & vbCrLf & guiPy, vbCritical, "Claude Session Linker - Setup"
     WScript.Quit 1
 End If
 
@@ -22,11 +22,11 @@ pywExe = FindPythonw()
 
 If pywExe = "" Then
     Dim r
-    r = MsgBox("O Python não foi encontrado nesta máquina." & vbCrLf & vbCrLf & _
+    r = MsgBox("O Python n" & ChrW(227) & "o foi encontrado nesta m" & ChrW(225) & "quina." & vbCrLf & vbCrLf & _
         "Instale o Python 3.11 ou superior (marque 'Add python.exe to PATH')" & vbCrLf & _
         "e depois rode este instalador novamente." & vbCrLf & vbCrLf & _
-        "Abrir a página de download agora?", _
-        vbExclamation + vbYesNo, "Claude Session Linker - Python necessário")
+        "Abrir a p" & ChrW(225) & "gina de download agora?", _
+        vbExclamation + vbYesNo, "Claude Session Linker - Python necess" & ChrW(225) & "rio")
     If r = vbYes Then objShell.Run "https://www.python.org/downloads/", 1, False
     WScript.Quit 1
 End If

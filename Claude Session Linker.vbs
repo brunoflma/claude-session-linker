@@ -12,7 +12,7 @@ pythonExe = ""
 pythonDir = ""
 guiScript = appDir & "\session_linker.py"
 
-' --- 0. Project venv (.app\venv) — self-contained, preferred ----------------
+' --- 0. Project venv (.app\venv) - self-contained, preferred ----------------
 Dim venvExe : venvExe = appDir & "\venv\Scripts\pythonw.exe"
 If objFSO.FileExists(venvExe) Then
     pythonExe = venvExe
@@ -66,14 +66,15 @@ End If
 ' --- 3. Common installation paths as last resort ----------------------------
 If pythonExe = "" Then
     Dim fallbacks(7)
+    ' Only interpreters at or above the 3.11 floor; older ones cannot run the pinned dependencies.
     fallbacks(0) = "C:\Python314\pythonw.exe"
     fallbacks(1) = "C:\Python313\pythonw.exe"
     fallbacks(2) = "C:\Python312\pythonw.exe"
     fallbacks(3) = "C:\Python311\pythonw.exe"
-    fallbacks(4) = "C:\Python310\pythonw.exe"
-    fallbacks(5) = "C:\Python39\pythonw.exe"
-    fallbacks(6) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python314\pythonw.exe"
-    fallbacks(7) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python313\pythonw.exe"
+    fallbacks(4) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python314\pythonw.exe"
+    fallbacks(5) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python313\pythonw.exe"
+    fallbacks(6) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python312\pythonw.exe"
+    fallbacks(7) = objShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Programs\Python\Python311\pythonw.exe"
     Dim f
     For f = 0 To 7
         If objFSO.FileExists(fallbacks(f)) Then
@@ -86,15 +87,15 @@ End If
 
 ' --- Guards ------------------------------------------------------------------
 If pythonExe = "" Then
-    MsgBox "Ambiente Python não encontrado." & vbCrLf & vbCrLf & _
+    MsgBox "Ambiente Python n" & ChrW(227) & "o encontrado." & vbCrLf & vbCrLf & _
            "Instale o Python 3.11+ em C:\Python3XX\ ou pelo instalador oficial, " & _
-           "ou dê duplo clique em '00 - Setup Claude Session Linker.vbs' para criar o venv isolado.", _
-           vbCritical, "Claude Session Linker - inicialização"
+           "ou d" & ChrW(234) & " duplo clique em '00 - Setup Claude Session Linker.vbs' para criar o venv isolado.", _
+           vbCritical, "Claude Session Linker - inicializa" & ChrW(231) & ChrW(227) & "o"
     WScript.Quit 1
 End If
 If Not objFSO.FileExists(guiScript) Then
-    MsgBox "Interface do Claude Session Linker não encontrada." & vbCrLf & vbCrLf & _
-           "Pasta esperada:" & vbCrLf & appDir, vbCritical, "Claude Session Linker - inicialização"
+    MsgBox "Interface do Claude Session Linker n" & ChrW(227) & "o encontrada." & vbCrLf & vbCrLf & _
+           "Pasta esperada:" & vbCrLf & appDir, vbCritical, "Claude Session Linker - inicializa" & ChrW(231) & ChrW(227) & "o"
     WScript.Quit 1
 End If
 

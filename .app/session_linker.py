@@ -57,6 +57,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -125,48 +126,40 @@ if _TCL.exists():
     os.environ.setdefault("TK_LIBRARY", str(_TCL / "tk8.6"))
 
 
-def _log(message):
-    try:
-        import tempfile
-        import shutil
-        import os
-        # Write to a secure temporary file first, then atomically replace the target
-        fd, tmp_path = tempfile.mkstemp(dir=str(ERR_LOG.parent))
-        try:
-            with os.fdopen(fd, "wb") as f_out:
-                if not ERR_LOG.is_symlink() and ERR_LOG.exists():
-                    try:
-                        with _secure_open_read(ERR_LOG, "rb") as f_in:
-                            # Security: prevent DoS by evaluating file size via the secure file descriptor
-                            if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # 5MB limit
-                                # Perform secure log rotation
-                                bak_fd, bak_tmp = tempfile.mkstemp(dir=str(ERR_LOG.parent))
-                                try:
-                                    with os.fdopen(bak_fd, "wb") as f_bak:
-                                        shutil.copyfileobj(f_in, f_bak)
-                                    os.replace(bak_tmp, ERR_LOG.with_name(ERR_LOG.name + ".1"))
-                                except Exception:
-                                    try:
-                                        os.chmod(bak_tmp, 0o600)
-                                        os.unlink(bak_tmp)
-                                    except OSError:
-                                        pass
-                            else:
-                                shutil.copyfileobj(f_in, f_out)
-                    except Exception:
-                        pass
-                f_out.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n".encode("utf-8"))
-            # Inherit os.replace's atomic guarantees
-            os.replace(tmp_path, ERR_LOG)
-        except Exception:
-            try:
-                os.chmod(tmp_path, 0o600)
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-    except Exception:
-        pass
+LOG_MAX_BYTES = 5 * 1024 * 1024
 
+
+def _log(message):
+    """Append one line to the error log, rotating it to `.1` past 5 MB.
+
+    The previous version copied the entire log into a temp file on every
+    call (up to 5 MB of I/O per line). Appending keeps it O(1) while staying
+    safe against a planted symlink: O_NOFOLLOW where the OS has it, plus an
+    identity check (fstat of the open handle vs lstat of the path) that also
+    covers Windows, where O_NOFOLLOW does not exist.
+    """
+    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}\n".encode("utf-8", "replace")
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(ERR_LOG, flags, 0o600)
+    except OSError:
+        return
+    rotate = False
+    try:
+        opened, on_disk = os.fstat(fd), os.lstat(ERR_LOG)
+        if stat.S_ISLNK(on_disk.st_mode) or (opened.st_ino, opened.st_dev) != (on_disk.st_ino, on_disk.st_dev):
+            return
+        os.write(fd, line)
+        rotate = opened.st_size + len(line) > LOG_MAX_BYTES
+    except OSError:
+        return
+    finally:
+        os.close(fd)
+    if rotate:
+        try:
+            os.replace(ERR_LOG, ERR_LOG.with_name(ERR_LOG.name + ".1"))
+        except OSError:
+            pass
 
 try:
     import customtkinter as ctk
@@ -418,8 +411,6 @@ def _secure_write_text(path: Path, content: str) -> None:
     if ".." in path.parts:
         raise Exception("Invalid file path")
 
-    import tempfile
-
     # Write to a secure temporary file first, then atomically replace the target
     fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), text=True)
     try:
@@ -481,8 +472,6 @@ def _secure_copy(src: Path | str, dest: Path | str) -> None:
         raise Exception("Invalid file path")
     if src_path.is_symlink() or dest_path.is_symlink():
         raise OSError("Refusing to copy involving a symlink")
-
-    import tempfile
 
     # Write to a secure temporary file first, then atomically replace the target
     fd, tmp_path = tempfile.mkstemp(dir=str(dest_path.parent))
@@ -711,16 +700,20 @@ def scan_account_ids(folder_names=("claude-code-sessions", "local-agent-mode-ses
     return accounts
 
 
-def scan_sessions() -> dict:
-    """{accountUUID: [ {path, sessionId, cliSessionId, cwd, title,
-    lastActivityAt, isArchived, workspaceUUID}, ... ] } sorted newest first."""
+def _scan_index_tree(folder_name: str, with_data_dir: bool) -> dict:
+    """{accountUUID: [session, ...]} for one index tree across every Claude
+    root, newest first. Each session is a dict with path, data_dir,
+    accountId, claudeDir, sessionsDir, sessionId, cliSessionId, cwd, title,
+    lastActivityAt, isArchived, workspaceUUID and the link metadata keys.
+
+    Directory entries come from a single scandir per folder, so companion
+    data folders are matched by name without extra stat calls, and the link
+    registry is loaded once per scan instead of once per session.
+    """
     result: dict[str, list[dict]] = {}
-    # Bolt Optimization: Load link_registry once before looping to prevent
-    # O(N) disk reads and JSON parsing per session file
     link_registry = load_link_registry()
-    has_registry = bool(link_registry)
     for claude_dir in CLAUDE_DIRS:
-        sessions_dir = claude_dir / "claude-code-sessions"
+        sessions_dir = claude_dir / folder_name
         if sessions_dir.is_symlink() or not sessions_dir.is_dir():
             continue
         for account_entry in _scandir_or_empty(sessions_dir):
@@ -731,151 +724,45 @@ def scan_sessions() -> dict:
             for workspace_entry in _scandir_or_empty(account_entry.path):
                 if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
                     continue
-                # Bolt Optimization: Prevent O(N) redundant Path object instantiations inside loops
-                # by keeping workspace_entry.name as string.
-                workspace_entry_name = workspace_entry.name
-
-                # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
-                # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
-                # then use a fast set lookup instead of data_dir.is_symlink() and data_dir.is_dir()
                 json_files = []
-                valid_data_dirs = set()
-
+                data_dir_names = set()
                 for file_entry in _scandir_or_empty(workspace_entry.path):
                     if file_entry.is_symlink():
                         continue
                     if file_entry.is_file(follow_symlinks=False):
                         if file_entry.name.startswith("local_") and file_entry.name.endswith(".json"):
                             json_files.append(file_entry)
-                    elif file_entry.is_dir(follow_symlinks=False):
-                        valid_data_dirs.add(file_entry.name)
+                    elif with_data_dir and file_entry.is_dir(follow_symlinks=False):
+                        data_dir_names.add(file_entry.name)
 
+                workspace_dir = Path(workspace_entry.path)
                 for file_entry in json_files:
                     try:
-                        # Bolt Optimization: Direct file open using the path property of the DirEntry
-                        # instead of redundantly wrapping in Path(file_entry.path) before opening.
                         with _secure_open_read(file_entry.path, "rb") as f_in:
                             if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
                                 continue
-                            # Bolt Optimization: json.load(open("rb")) is significantly faster
                             data = json.load(f_in)
                     except Exception:
                         continue
+                    if not isinstance(data, dict):
+                        continue
 
-                    # We still need the Path for the registry key.
-                    f = Path(file_entry.path)
-
-                    # Bolt Optimization: Skip expensive dictionary string/path formatting
-                    # using `_link_key(f)` if the `link_registry` is completely empty.
-                    link_metadata = link_registry.get(_link_key(f), {}) if has_registry else {}
+                    f = workspace_dir / file_entry.name
+                    link_metadata = link_registry.get(_link_key(f), {}) if link_registry else {}
+                    stem = file_entry.name[:-5]
                     account_sessions.append({
                         "path": f,
-                        "data_dir": None,
+                        "data_dir": workspace_dir / stem if stem in data_dir_names else None,
                         "accountId": account_id,
                         "claudeDir": claude_dir,
                         "sessionsDir": sessions_dir,
-                        "sessionId": data.get("sessionId", file_entry.name[:-5]),
-                        "cliSessionId": str(data.get("cliSessionId") or ""),
-                        "cwd": str(data.get("cwd") or ""),
-                        "title": _coerce_title(data.get("title")),
-                        "lastActivityAt": _coerce_ms(data.get("lastActivityAt")),
-                        "isArchived": bool(data.get("isArchived", False)),
-                        "workspaceUUID": workspace_entry_name,
-                        "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
-                        "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
-                        "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
-                        "linkedSourceCliSessionId": link_metadata.get(LINKED_SOURCE_CLI_SESSION_ID_KEY) or data.get(LINKED_SOURCE_CLI_SESSION_ID_KEY),
-                    })
-            if account_sessions:
-                result.setdefault(account_id, []).extend(account_sessions)
-    for sessions in result.values():
-        sessions.sort(key=lambda s: s["lastActivityAt"], reverse=True)
-    return result
-
-
-def scan_cowork_sessions() -> dict:
-    """Same shape as scan_sessions(), but for Cowork (Agent Mode).
-
-    Each index file (local_<agentUUID>.json) sits next to a same-stem
-    folder (local_<agentUUID>\\) holding audit.jsonl, uploads, and command
-    outputs -- Cowork keeps no account-agnostic transcript elsewhere, so
-    that folder is the actual conversation data and travels with the index
-    whenever a session is linked ("data_dir" below).
-    """
-    result: dict[str, list[dict]] = {}
-    # Bolt Optimization: Load link_registry once before looping to prevent
-    # O(N) disk reads and JSON parsing per session file
-    link_registry = load_link_registry()
-    has_registry = bool(link_registry)
-    for claude_dir in CLAUDE_DIRS:
-        cowork_sessions_dir = claude_dir / "local-agent-mode-sessions"
-        if cowork_sessions_dir.is_symlink() or not cowork_sessions_dir.is_dir():
-            continue
-        for account_entry in _scandir_or_empty(cowork_sessions_dir):
-            if account_entry.is_symlink() or not account_entry.is_dir(follow_symlinks=False):
-                continue
-            account_id = account_entry.name
-            account_sessions = []
-            for workspace_entry in _scandir_or_empty(account_entry.path):
-                if workspace_entry.is_symlink() or not workspace_entry.is_dir(follow_symlinks=False):
-                    continue
-                # Bolt Optimization: Prevent O(N) redundant Path object instantiations inside loops
-                # by keeping workspace_entry.name as string.
-                workspace_entry_name = workspace_entry.name
-
-                # Bolt Optimization: Prevent O(N) stat syscalls when verifying companion data_dirs.
-                # Collect both JSON files and valid data_dir names in a single pass of os.scandir,
-                # then use a fast set lookup instead of data_dir.is_symlink() and data_dir.is_dir()
-                json_files = []
-                valid_data_dirs = set()
-
-                for file_entry in _scandir_or_empty(workspace_entry.path):
-                    if file_entry.is_symlink():
-                        continue
-                    if file_entry.is_file(follow_symlinks=False):
-                        if file_entry.name.startswith("local_") and file_entry.name.endswith(".json"):
-                            json_files.append(file_entry)
-                    elif file_entry.is_dir(follow_symlinks=False):
-                        valid_data_dirs.add(file_entry.name)
-
-                # We still need the workspace_dir Path later if there are valid_data_dirs.
-                workspace_dir = Path(workspace_entry.path) if json_files else None
-
-                for file_entry in json_files:
-                    try:
-                        # Bolt Optimization: Direct file open using the path property of the DirEntry
-                        # instead of redundantly wrapping in Path(file_entry.path) before opening.
-                        with _secure_open_read(file_entry.path, "rb") as f_in:
-                            if os.fstat(f_in.fileno()).st_size > 5 * 1024 * 1024:  # Security: 5MB limit
-                                continue
-                            # Bolt Optimization: json.load(open("rb")) is significantly faster
-                            data = json.load(f_in)
-                    except Exception:
-                        continue
-
-                    # We still need the Path for the registry key and result dictionary.
-                    f = Path(file_entry.path)
-
-                    # Bolt Optimization: Skip expensive dictionary string/path formatting
-                    # using `_link_key(f)` if the `link_registry` is completely empty.
-                    link_metadata = link_registry.get(_link_key(f), {}) if has_registry else {}
-
-                    stem = file_entry.name[:-5]
-                    data_dir = workspace_dir / stem if stem in valid_data_dirs else None
-
-                    account_sessions.append({
-                        "path": f,
-                        "data_dir": data_dir,
-                        "accountId": account_id,
-                        "claudeDir": claude_dir,
-                        "sessionsDir": cowork_sessions_dir,
                         "sessionId": data.get("sessionId", stem),
                         "cliSessionId": str(data.get("cliSessionId") or ""),
                         "cwd": str(data.get("cwd") or ""),
                         "title": _coerce_title(data.get("title")),
                         "lastActivityAt": _coerce_ms(data.get("lastActivityAt")),
                         "isArchived": bool(data.get("isArchived", False)),
-                        "workspaceUUID": workspace_entry_name,
+                        "workspaceUUID": workspace_entry.name,
                         "linkedFromAccount": link_metadata.get(LINKED_FROM_ACCOUNT_KEY) or data.get(LINKED_FROM_ACCOUNT_KEY),
                         "originAccount": link_metadata.get(ORIGIN_ACCOUNT_KEY) or data.get(ORIGIN_ACCOUNT_KEY),
                         "linkedAt": link_metadata.get(LINKED_AT_KEY) or data.get(LINKED_AT_KEY),
@@ -886,6 +773,20 @@ def scan_cowork_sessions() -> dict:
     for sessions in result.values():
         sessions.sort(key=lambda s: s["lastActivityAt"], reverse=True)
     return result
+
+
+def scan_sessions() -> dict:
+    """Code tab sessions. Transcripts live account-agnostic under
+    ~/.claude/projects, so data_dir is always None here."""
+    return _scan_index_tree("claude-code-sessions", with_data_dir=False)
+
+
+def scan_cowork_sessions() -> dict:
+    """Cowork (Agent Mode) sessions. Each index file (local_<id>.json) sits
+    next to a same-stem folder holding audit.jsonl, uploads and outputs --
+    Cowork keeps no account-agnostic transcript, so that folder ("data_dir")
+    is the conversation itself and travels with the index when linking."""
+    return _scan_index_tree("local-agent-mode-sessions", with_data_dir=True)
 
 
 def backup_dir_tree(dir_path: Path, label: str) -> Path:
@@ -1314,6 +1215,28 @@ def link_cowork_session_to_account(session: dict, target_account_id: str):
         "Feche o Claude Desktop completamente (bandeja do sistema) e abra de "
         "novo, logado na conta de destino, para ver a sessão do Cowork."
     )
+
+
+def ensure_default_labels(account_ids, labels: dict) -> None:
+    """Give every unnamed account its "Conta N" label with one file write
+    (calling assign_default_label per account wrote the file N times)."""
+    missing = sorted(a for a in account_ids if a not in labels)
+    if not missing:
+        return
+    used = {
+        int(v[6:]) for v in labels.values()
+        if isinstance(v, str) and v.startswith("Conta ") and v[6:].isdigit()
+    }
+    n = 1
+    for account_id in missing:
+        while n in used:
+            n += 1
+        labels[account_id] = f"Conta {n}"
+        used.add(n)
+    try:
+        save_labels(labels)
+    except Exception as exc:
+        _log(f"could not persist default labels: {exc}")
 
 
 def assign_default_label(account_id: str, labels: dict) -> str:
@@ -1799,6 +1722,7 @@ class SessionLinkerApp(ctk.CTk):
         self._loaded = False
         self._refreshing = False
         self._search_after = None
+        self._resize_after = None
         self._tooltip = {"win": None, "after_id": None, "widget": None}
         self._refresh_generation = 0
         self.bind("<Leave>", lambda _event=None: self._hide_tooltip(), add="+")
@@ -1983,6 +1907,7 @@ class SessionLinkerApp(ctk.CTk):
         )
         self._scroll.grid(row=3, column=0, sticky="nsew", padx=(22, 8), pady=(14, 12))
         self._scroll.grid_columnconfigure(0, weight=1)
+        self._scroll.bind("<Configure>", self._on_list_resized, add="+")
 
     def _bind_shortcuts(self):
         self.bind("<F5>", lambda _e: self.refresh())
@@ -2154,6 +2079,7 @@ class SessionLinkerApp(ctk.CTk):
         self.active_account = result["active"]
         self.sessions_by_account = result["sessions"]
         self.known_accounts = set(result["accounts"]) | set(result["sessions"])
+        ensure_default_labels(self.known_accounts, self.labels)
         self.desktop_running = result["running"]
         self.duplicates = find_possible_duplicates(self.sessions_by_account, mode)
         self.link_groups = find_linked_session_groups(self.sessions_by_account)
@@ -2339,10 +2265,6 @@ class SessionLinkerApp(ctk.CTk):
         self.visible_limit = PAGE_SIZE
         self._render_accounts()
         self._render_sessions()
-        try:
-            self._scroll._parent_canvas.yview_moveto(0)
-        except Exception:
-            pass
 
     def _filtered_items(self):
         if self.selected_account is None:
@@ -2356,10 +2278,15 @@ class SessionLinkerApp(ctk.CTk):
         items.sort(key=lambda t: t[1].get("lastActivityAt", 0), reverse=True)
         return items
 
-    def _render_sessions(self):
+    def _render_sessions(self, keep_scroll=False):
         self._hide_tooltip()
         for w in self._scroll.winfo_children():
             w.destroy()
+        if not keep_scroll:
+            try:
+                self._scroll._parent_canvas.yview_moveto(0)
+            except Exception:
+                pass
 
         mode_name = "Cowork" if self.session_mode == "cowork" else "Code"
         if self.selected_account is None:
@@ -2384,7 +2311,7 @@ class SessionLinkerApp(ctk.CTk):
             self._render_empty(mode_name)
             return
 
-        self._title_wrap = max(260, self._scroll.winfo_width() - (80 if self._compact_layout else 400))
+        self._title_wrap = self._wrap_for_width(self._scroll.winfo_width())
         for account_id, session in items[: self.visible_limit]:
             self._build_session_card(account_id, session)
         remaining = len(items) - self.visible_limit
@@ -2394,9 +2321,27 @@ class SessionLinkerApp(ctk.CTk):
                 self._show_more, "secondary", height=36,
             ).pack(fill="x", padx=6, pady=(4, 12))
 
+    def _wrap_for_width(self, width):
+        return max(260, width - (80 if self._compact_layout else 400))
+
+    def _on_list_resized(self, event):
+        # Titles wrap at a fixed pixel width; re-render once the window has
+        # settled at a noticeably different size so they use the new space.
+        if not self._loaded or self._load_error is not None:
+            return
+        if abs(self._wrap_for_width(event.width) - getattr(self, "_title_wrap", 0)) < 60:
+            return
+        if self._resize_after is not None:
+            self.after_cancel(self._resize_after)
+        self._resize_after = self.after(250, self._rewrap_after_resize)
+
+    def _rewrap_after_resize(self):
+        self._resize_after = None
+        self._render_sessions(keep_scroll=True)
+
     def _show_more(self):
         self.visible_limit += PAGE_SIZE
-        self._render_sessions()
+        self._render_sessions(keep_scroll=True)
 
     def _render_empty(self, mode_name):
         empty = ctk.CTkFrame(self._scroll, fg_color=CARD, corner_radius=12, border_width=1, border_color=LINE)

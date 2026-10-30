@@ -1382,5 +1382,85 @@ class PresentationHelperTests(unittest.TestCase):
         self.assertEqual(labels, {"acc": "Conta 1"})
 
 
+class SweepRegressionTests(unittest.TestCase):
+    def test_log_appends_and_rotates_past_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "error.log"
+            with patch.object(session_linker, "ERR_LOG", log), patch.object(session_linker, "LOG_MAX_BYTES", 200):
+                session_linker._log("first")
+                session_linker._log("second")
+                lines = log.read_text(encoding="utf-8").splitlines()
+                self.assertEqual(len(lines), 2)
+                self.assertTrue(lines[0].endswith("first") and lines[1].endswith("second"))
+                for i in range(10):
+                    session_linker._log(f"filler {i} " + "x" * 20)
+                rotated = log.with_name("error.log.1")
+                self.assertTrue(rotated.exists())
+                self.assertLessEqual(log.stat().st_size if log.exists() else 0, 200)
+
+    def test_log_refuses_symlinked_log_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outside = Path(tmp) / "outside.txt"
+            outside.write_text("protected", encoding="utf-8")
+            log = Path(tmp) / "error.log"
+            try:
+                log.symlink_to(outside)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symlinks not supported in environment")
+            with patch.object(session_linker, "ERR_LOG", log):
+                session_linker._log("must not land outside")
+            self.assertEqual(outside.read_text(encoding="utf-8"), "protected")
+
+    def test_ensure_default_labels_writes_once_and_fills_gaps(self):
+        labels = {"known": "Conta 1", "named": "Escritório"}
+        with patch.object(session_linker, "save_labels") as save:
+            session_linker.ensure_default_labels({"known", "named", "b-new", "a-new"}, labels)
+            session_linker.ensure_default_labels({"known", "a-new"}, labels)
+        self.assertEqual(save.call_count, 1)
+        self.assertEqual(labels["a-new"], "Conta 2")
+        self.assertEqual(labels["b-new"], "Conta 3")
+        self.assertEqual(labels["named"], "Escritório")
+
+    def test_scanners_share_shape_and_only_cowork_has_data_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            code_path = write_code_session(root, ACCOUNT_A, "ws", "code", "cli-code", 10)
+            (code_path.parent / "local_code").mkdir()  # a same-stem folder must not count for Code
+            write_cowork_session(root, ACCOUNT_A, "ws", "cowork", "cli-cowork", 20)
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            code = module.scan_sessions()[ACCOUNT_A][0]
+            cowork = module.scan_cowork_sessions()[ACCOUNT_A][0]
+
+            self.assertEqual(set(code), set(cowork))
+            self.assertIsNone(code["data_dir"])
+            self.assertEqual(cowork["data_dir"].name, "local_cowork")
+            self.assertEqual(code["sessionsDir"].name, "claude-code-sessions")
+
+    def test_scan_skips_index_that_is_not_a_json_object(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdata = Path(tmp) / "Roaming"
+            localappdata = Path(tmp) / "Local"
+            root = appdata / "Claude"
+            good = write_code_session(root, ACCOUNT_A, "ws", "good", "cli", 10)
+            (good.parent / "local_list.json").write_text("[1, 2]", encoding="utf-8")
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            module = load_session_linker_with_env(appdata, localappdata)
+
+            self.assertEqual([s["path"] for s in module.scan_sessions()[ACCOUNT_A]], [good])
+
+
+class IconAssetTests(unittest.TestCase):
+    def test_ico_carries_every_frame_up_to_256(self):
+        from PIL import Image
+        with Image.open(MODULE_PATH.with_name("icon.ico")) as ico:
+            sizes = set(ico.info["sizes"])
+        for size in (16, 24, 32, 48, 256):
+            self.assertIn((size, size), sizes)
+
+
 if __name__ == "__main__":
     unittest.main()

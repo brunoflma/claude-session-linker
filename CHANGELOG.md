@@ -11,6 +11,9 @@
 - Aviso de Claude Desktop aberto em faixa visível no topo, com botão para verificar novamente; atalho F5 para atualizar.
 - Diálogos de vínculo, remoção, comparação e renomeação reorganizados, com mensagens de estado coloridas e textos mais claros.
 - Botão para abrir a pasta de backups. Fontes nativas no Windows e no macOS; emojis removidos dos controles.
+- Novo ícone: duas conversas ligadas sobre o mesmo terracota da interface, com versão simplificada para 16 a 32 px. O favicon do site acompanha o novo desenho.
+- Instalador do Windows com a mesma identidade visual do aplicativo e lista de etapas que avança durante o setup.
+- Títulos das sessões se ajustam à largura quando a janela é redimensionada; a lista volta ao topo ao trocar de conta, busca ou filtro.
 
 ### Correções
 
@@ -23,6 +26,16 @@
 - O texto do aviso de possível duplicata não desaparece mais ao passar o mouse; cópias vinculadas diretamente não são mais apontadas como duplicatas.
 - A transcrição recém-clonada é encontrada imediatamente após o vínculo.
 - Falha ao gravar nomes de contas é informada no diálogo e não interrompe a interface.
+- O `icon.ico` distribuído tinha apenas o quadro de 16×16, o que deixava o ícone borrado na barra de tarefas e na janela do Windows; agora traz nove tamanhos, de 16 a 256 px.
+- As mensagens dos atalhos `.vbs` saíam com acentos corrompidos no Windows; os caracteres passam a ser gerados por código, independentemente da página de código do sistema.
+- O setup recria automaticamente um `.app/venv` montado com Python anterior ao 3.11, e o atalho do Windows não recorre mais a Python 3.9 ou 3.10.
+- Scripts do macOS traduzidos para o português, como o restante do aplicativo.
+
+### Desempenho e manutenção
+
+- O registro de erros passou a anexar linhas em vez de regravar o arquivo inteiro a cada mensagem (de cerca de 3 ms para 0,007 ms por linha com um log de 4 MB), mantendo a proteção contra links simbólicos também no Windows.
+- As varreduras de Code e Cowork compartilham uma única implementação, eliminando cerca de 90 linhas duplicadas.
+- Rótulos padrão de contas novas são gravados em uma única escrita.
 
 ## [2.1.8] - 2026-10-27
 

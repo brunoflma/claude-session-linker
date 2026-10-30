@@ -38,29 +38,39 @@ LAUNCHER = ROOT_DIR / "Claude Session Linker.vbs"
 PY_DOWNLOAD = "https://www.python.org/downloads/"
 NO_WIN = 0x08000000
 
-BG = "#0B0D10"
-SURF = "#15181D"
-SURF2 = "#1B2027"
-SURF3 = "#242A33"
-TXT = "#F4EFE3"
-TXT2 = "#C8BDAE"
-TXT3 = "#8F9BA8"
-BRD = "#343A42"
-BLUE = "#4FB7C5"
-BLUE_H = "#3B9CAA"
-GREEN = "#78B87A"
-GREEN_H = "#5F9F64"
-RED = "#E26D5A"
-RED_H = "#BF5747"
-YELLOW = "#E2B457"
-PAPER = "#F4EFE7"
-PAPER2 = "#FCF9F3"
-PAPER3 = "#EFE6D8"
-INK = "#202226"
-INK2 = "#5F5C55"
-INK3 = "#8B8174"
-LINE = "#DED4C5"
+ICON_PNG = APP_DIR / "icon.png"
 
+# Same palette as session_linker.py: dark rail, warm paper, terracotta accent.
+RAIL = "#16181C"
+RAIL2 = "#1F2228"
+RAIL_LINE = "#30353E"
+RAIL_TXT = "#F3EFE8"
+RAIL_TXT2 = "#B4AEA4"
+RAIL_TXT3 = "#7F8790"
+PAPER = "#F5F2EC"
+CARD = "#FFFFFF"
+LINE = "#E4DDD1"
+LINE2 = "#D4CBBC"
+INK = "#1E1F22"
+INK2 = "#57534C"
+INK3 = "#8A8378"
+ACCENT = "#C15F3C"
+ACCENT_H = "#A64F31"
+OK = "#5FBF7F"
+OK_H = "#4AA86A"
+DANGER = "#E0705E"
+WARN = "#E2B457"
+WARN_H = "#C99735"
+UI_FONT = "Segoe UI"
+MONO_FONT = "Consolas"
+
+# (label, substrings of setup.ps1 output that mark the step as started)
+STEPS = (
+    ("Localizar Python 3.11+", ("configurando ambiente",)),
+    ("Preparar ambiente isolado", ("python encontrado", "venv")),
+    ("Instalar dependências", ("instalando dependencias",)),
+    ("Verificar a interface", ("verificando import",)),
+)
 
 def _rounded_rect(canvas, x1, y1, x2, y2, radius, **kwargs):
     radius = min(radius, max(0, (x2 - x1) // 2), max(0, (y2 - y1) // 2))
@@ -81,9 +91,11 @@ class RoundedButton(tk.Canvas):
         self._bg = bg
         self._hover = hover
         self._command = command
-        self._shape = _rounded_rect(self, 1, 1, width - 1, height - 1, 8, fill=bg, outline="")
+        # A white (secondary) button needs a hairline to stand out on the paper background.
+        outline = LINE2 if bg == CARD else ""
+        self._shape = _rounded_rect(self, 1, 1, width - 1, height - 1, 8, fill=bg, outline=outline)
         self._label = self.create_text(
-            width // 2, height // 2, text=text, fill=fg, font=("Segoe UI", 10, "bold"),
+            width // 2, height // 2, text=text, fill=fg, font=(UI_FONT, 10, "bold"),
         )
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
@@ -138,20 +150,25 @@ class SetupApp(tk.Tk):
         self._bar_pos = 0
         self._status_code = None
         self._result_msg = ""
+        self._step = -1
+        self._step_rows = []
+        self._logo = None
 
-        self.f_title = tkfont.Font(family="Segoe UI", size=17, weight="bold")
-        self.f_hero = tkfont.Font(family="Segoe UI", size=19, weight="bold")
-        self.f_sub = tkfont.Font(family="Segoe UI", size=10)
-        self.f_status = tkfont.Font(family="Segoe UI", size=11, weight="bold")
-        self.f_btn = tkfont.Font(family="Segoe UI", size=10, weight="bold")
-        self.f_log = tkfont.Font(family="Consolas", size=9)
+        self.f_title = tkfont.Font(family=UI_FONT, size=14, weight="bold")
+        self.f_hero = tkfont.Font(family=UI_FONT, size=18, weight="bold")
+        self.f_sub = tkfont.Font(family=UI_FONT, size=10)
+        self.f_small = tkfont.Font(family=UI_FONT, size=9)
+        self.f_label = tkfont.Font(family=UI_FONT, size=8, weight="bold")
+        self.f_status = tkfont.Font(family=UI_FONT, size=11, weight="bold")
+        self.f_btn = tkfont.Font(family=UI_FONT, size=10, weight="bold")
+        self.f_log = tkfont.Font(family=MONO_FONT, size=9)
 
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         self._compact = screen_w < 900 or screen_h < 680
         self._build()
         target_w = min(860, max(520, screen_w - 48))
-        target_h = min(540, max(440, screen_h - 72))
+        target_h = min(560, max(440, screen_h - 72))
         self.minsize(min(520, target_w), min(440, target_h))
         self._center(target_w, target_h)
         self.after(80, self._lift_once)
@@ -162,129 +179,81 @@ class SetupApp(tk.Tk):
         shell = tk.Frame(self, bg=PAPER)
         shell.pack(fill="both", expand=True)
 
-        sidebar = tk.Frame(shell, bg=BG, width=286)
+        sidebar = tk.Frame(shell, bg=RAIL, width=280)
         sidebar.pack(side="top" if self._compact else "left", fill="x" if self._compact else "y")
         if not self._compact:
             sidebar.pack_propagate(False)
-        side = tk.Frame(sidebar, bg=BG)
-        side.pack(fill="both", expand=True, padx=18 if self._compact else 22, pady=12 if self._compact else 22)
+        side = tk.Frame(sidebar, bg=RAIL)
+        side.pack(fill="both", expand=True, padx=18 if self._compact else 24, pady=14 if self._compact else 26)
 
-        tk.Label(
-            side,
-            text="Claude Session Linker",
-            bg=BG,
-            fg=TXT,
-            font=self.f_title,
-            anchor="w",
-            justify="left",
-            wraplength=238,
-        ).pack(fill="x")
-        tk.Label(
-            side,
-            text="Prepara o ambiente local para vincular sessões do Code e do Cowork entre contas Claude.",
-            bg=BG,
-            fg=TXT2,
-            font=self.f_sub,
-            anchor="w",
-            justify="left",
-            wraplength=238,
-        ).pack(fill="x", pady=(4, 0))
+        brand = tk.Frame(side, bg=RAIL)
+        brand.pack(fill="x")
+        try:
+            # 512 px PNG -> 48 px with Tk's integer zoom/subsample (stdlib only).
+            self._logo = tk.PhotoImage(file=str(ICON_PNG)).zoom(3).subsample(32)
+            tk.Label(brand, image=self._logo, bg=RAIL).pack(side="left", padx=(0, 12))
+        except Exception:
+            self._logo = None
+        brand_text = tk.Frame(brand, bg=RAIL)
+        brand_text.pack(side="left", fill="x")
+        tk.Label(brand_text, text="Session Linker", bg=RAIL, fg=RAIL_TXT, font=self.f_title, anchor="w").pack(fill="x")
+        tk.Label(brand_text, text="Instalação", bg=RAIL, fg=RAIL_TXT3, font=self.f_small, anchor="w").pack(fill="x")
 
-        status_canvas = tk.Canvas(side, height=86, bg=BG, highlightthickness=0, bd=0)
-        status_canvas.pack(fill="x", pady=(10 if self._compact else 26, 0))
-        _rounded_rect(status_canvas, 1, 1, 241, 85, 10, fill=SURF, outline=BRD)
-        status_inner = tk.Frame(status_canvas, bg=SURF)
-        status_canvas.create_window(13, 12, window=status_inner, anchor="nw", width=216, height=62)
-        self._dot = tk.Canvas(status_inner, width=12, height=12, bg=SURF, highlightthickness=0)
-        self._dot.pack(anchor="w")
-        self._dot_id = self._dot.create_oval(2, 2, 11, 11, fill=YELLOW, outline="")
+        if not self._compact:
+            tk.Label(side, text="ETAPAS", bg=RAIL, fg=RAIL_TXT3, font=self.f_label, anchor="w").pack(fill="x", pady=(30, 8))
+            for label, _markers in STEPS:
+                row = tk.Frame(side, bg=RAIL)
+                row.pack(fill="x", pady=4)
+                dot = tk.Canvas(row, width=22, height=22, bg=RAIL, highlightthickness=0)
+                dot.pack(side="left")
+                circle = dot.create_oval(3, 3, 19, 19, outline=RAIL_LINE, width=2, fill=RAIL)
+                mark = dot.create_text(11, 11, text="", fill=RAIL, font=(UI_FONT, 8, "bold"))
+                text = tk.Label(row, text=label, bg=RAIL, fg=RAIL_TXT3, font=self.f_sub, anchor="w")
+                text.pack(side="left", padx=(10, 0))
+                self._step_rows.append((dot, circle, mark, text))
+
+        status_box = tk.Frame(side, bg=RAIL2, highlightthickness=1, highlightbackground=RAIL_LINE)
+        status_box.pack(fill="x", pady=(14 if self._compact else 30, 0))
+        status_inner = tk.Frame(status_box, bg=RAIL2)
+        status_inner.pack(fill="x", padx=14, pady=12)
+        self._dot = tk.Canvas(status_inner, width=12, height=12, bg=RAIL2, highlightthickness=0)
+        self._dot.pack(side="left", anchor="n", pady=(4, 0))
+        self._dot_id = self._dot.create_oval(2, 2, 11, 11, fill=WARN, outline="")
         self._status = tk.Label(
-            status_inner,
-            text="Aguardando setup...",
-            bg=SURF,
-            fg=TXT,
-            font=self.f_status,
-            anchor="w",
-            justify="left",
-            wraplength=206,
+            status_inner, text="Aguardando setup...", bg=RAIL2, fg=RAIL_TXT, font=self.f_status,
+            anchor="w", justify="left", wraplength=190,
         )
-        self._status.pack(fill="x", pady=(8, 0))
+        self._status.pack(side="left", fill="x", padx=(10, 0))
 
-        self._version_label = tk.Label(
-            side,
-            text=f"v{APP_VERSION}",
-            bg=BG,
-            fg=TXT3,
-            font=self.f_sub,
-            anchor="w",
-        )
+        self._version_label = tk.Label(side, text=f"Versão {APP_VERSION}", bg=RAIL, fg=RAIL_TXT3, font=self.f_small, anchor="w")
         self._version_label.pack(side="bottom", fill="x")
 
         main = tk.Frame(shell, bg=PAPER)
         main.pack(side="top" if self._compact else "left", fill="both", expand=True)
 
         header = tk.Frame(main, bg=PAPER)
-        header.pack(fill="x", padx=22, pady=(22, 14))
+        header.pack(fill="x", padx=28, pady=(26, 14))
         tk.Label(
-            header,
-            text="Configuração do ambiente",
-            bg=PAPER,
-            fg=INK,
-            font=self.f_hero,
-            anchor="w",
-            justify="left",
-            wraplength=510,
+            header, text="Configuração do ambiente", bg=PAPER, fg=INK, font=self.f_hero,
+            anchor="w", justify="left", wraplength=520,
         ).pack(fill="x")
         tk.Label(
             header,
-            text="Instala dependências em um venv isolado e verifica a interface.",
-            bg=PAPER,
-            fg=INK2,
-            font=self.f_sub,
-            anchor="w",
-            justify="left",
-            wraplength=510,
-        ).pack(fill="x", pady=(2, 0))
+            text="Cria um ambiente Python isolado em .app\\venv e instala o necessário para abrir a interface. "
+                 "Nenhuma conversa ou conta é acessada nesta etapa.",
+            bg=PAPER, fg=INK2, font=self.f_sub, anchor="w", justify="left", wraplength=520,
+        ).pack(fill="x", pady=(4, 0))
 
-        self._bar = tk.Canvas(main, height=4, bg=PAPER3, highlightthickness=0)
-        self._bar.pack(fill="x", padx=22, pady=(0, 14))
-        self._bar_id = self._bar.create_rectangle(0, 0, 0, 4, fill=BLUE, outline="")
+        self._bar = tk.Canvas(main, height=4, bg=LINE, highlightthickness=0)
+        self._bar.pack(fill="x", padx=28, pady=(0, 14))
+        self._bar_id = self._bar.create_rectangle(0, 0, 0, 4, fill=ACCENT, outline="")
 
-        body = tk.Frame(main, bg=PAPER)
-        body.pack(fill="x", padx=22, pady=(0, 10))
-        text = (
-            "O setup cria um ambiente Python isolado em .app\\venv e instala "
-            "as dependências necessárias para abrir a interface."
-        )
-        tk.Label(
-            body,
-            text=text,
-            bg=PAPER,
-            fg=INK2,
-            font=self.f_sub,
-            anchor="w",
-            justify="left",
-            wraplength=510,
-        ).pack(fill="x")
-
-        logwrap = tk.Frame(main, bg=PAPER)
-        logwrap.pack(fill="both", expand=True, padx=22, pady=(0, 16))
+        tk.Label(main, text="REGISTRO", bg=PAPER, fg=INK3, font=self.f_label, anchor="w").pack(fill="x", padx=28, pady=(0, 6))
+        logwrap = tk.Frame(main, bg=CARD, highlightthickness=1, highlightbackground=LINE, highlightcolor=LINE)
+        logwrap.pack(fill="both", expand=True, padx=28, pady=(0, 16))
         self._log = tk.Text(
-            logwrap,
-            bg=PAPER2,
-            fg=INK2,
-            insertbackground=INK,
-            font=self.f_log,
-            relief="flat",
-            borderwidth=0,
-            height=10,
-            wrap="word",
-            padx=10,
-            pady=8,
-            state="disabled",
-            highlightthickness=1,
-            highlightbackground=LINE,
-            highlightcolor=LINE,
+            logwrap, bg=CARD, fg=INK2, insertbackground=INK, font=self.f_log, relief="flat", borderwidth=0,
+            height=10, wrap="word", padx=12, pady=10, state="disabled", highlightthickness=0,
         )
         self._log.pack(side="left", fill="both", expand=True)
         sb = tk.Scrollbar(logwrap, command=self._log.yview)
@@ -292,7 +261,43 @@ class SetupApp(tk.Tk):
         self._log.configure(yscrollcommand=sb.set)
 
         self._actions = tk.Frame(main, bg=PAPER)
-        self._actions.pack(fill="x", padx=22, pady=(0, 18))
+        self._actions.pack(fill="x", padx=28, pady=(0, 22))
+
+    def _paint_step(self, index, state):
+        if index >= len(self._step_rows):
+            return
+        dot, circle, mark, text = self._step_rows[index]
+        if state == "done":
+            dot.itemconfigure(circle, fill=OK, outline=OK)
+            dot.itemconfigure(mark, text="✓", fill=RAIL)
+            text.configure(fg=RAIL_TXT2)
+        elif state == "active":
+            dot.itemconfigure(circle, fill=RAIL, outline=ACCENT)
+            dot.itemconfigure(mark, text="•", fill=ACCENT)
+            text.configure(fg=RAIL_TXT)
+        elif state == "failed":
+            dot.itemconfigure(circle, fill=DANGER, outline=DANGER)
+            dot.itemconfigure(mark, text="!", fill=RAIL)
+            text.configure(fg=RAIL_TXT)
+        else:
+            dot.itemconfigure(circle, fill=RAIL, outline=RAIL_LINE)
+            dot.itemconfigure(mark, text="", fill=RAIL)
+            text.configure(fg=RAIL_TXT3)
+
+    def _advance_steps(self, line):
+        low = line.lower()
+        for index in range(len(STEPS) - 1, self._step, -1):
+            if any(marker in low for marker in STEPS[index][1]):
+                for done in range(max(self._step, 0), index):
+                    self._paint_step(done, "done")
+                self._step = index
+                self._paint_step(index, "active")
+                return
+
+    def _reset_steps(self):
+        self._step = -1
+        for index in range(len(self._step_rows)):
+            self._paint_step(index, "idle")
 
     def _flat_button(self, parent, text, bg, hover, fg="#FFFFFF", cmd=None, side="right", width=None):
         if width is None:
@@ -320,6 +325,7 @@ class SetupApp(tk.Tk):
         self.after(500, lambda: self.attributes("-topmost", False))
 
     def _append(self, text):
+        self._advance_steps(text)
         self._log.configure(state="normal")
         self._log.insert("end", text)
         self._log.see("end")
@@ -360,7 +366,7 @@ class SetupApp(tk.Tk):
         if not SETUP_PS1.exists():
             self._finish(1, f"setup.ps1 não encontrado em:\n{SETUP_PS1}")
             return
-        self._set_status("Configurando ambiente...", BLUE)
+        self._set_status("Configurando ambiente...", ACCENT)
         self._append("Iniciando setup do Claude Session Linker...\n")
         self._start_bar()
         threading.Thread(target=self._run_setup, daemon=True).start()
@@ -461,23 +467,27 @@ class SetupApp(tk.Tk):
 
         low = (msg or "").lower()
         if code == 0:
-            self._set_status("Ambiente pronto", GREEN)
-            self._stop_bar(GREEN)
+            self._set_status("Ambiente pronto", OK)
+            self._stop_bar(OK)
+            for index in range(len(self._step_rows)):
+                self._paint_step(index, "done")
             if msg:
-                self._replace_log(msg.strip() + "\n")
-            self._flat_button(self._actions, "Abrir Claude Session Linker", GREEN, GREEN_H, cmd=self._open_app, width=230)
-            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy, width=104)
+                self._append("\n" + msg.strip() + "\n")
+            self._flat_button(self._actions, "Abrir Claude Session Linker", ACCENT, ACCENT_H, cmd=self._open_app, width=230)
+            self._flat_button(self._actions, "Fechar", CARD, LINE, fg=INK, cmd=self.destroy, width=104)
         else:
-            self._set_status("Configuração incompleta", RED)
-            self._stop_bar(RED)
+            self._set_status("Configuração incompleta", DANGER)
+            self._stop_bar(DANGER)
+            self._paint_step(max(self._step, 0), "failed")
             if msg:
                 self._append("\n" + msg.strip() + "\n")
             if "python.org" in low or "python" in low:
-                self._flat_button(self._actions, "Baixar Python", YELLOW, "#C99735", fg=BG, cmd=lambda: self._open(PY_DOWNLOAD), width=136)
-            self._flat_button(self._actions, "Tentar novamente", BLUE, BLUE_H, cmd=self._retry, width=160)
-            self._flat_button(self._actions, "Fechar", SURF3, BRD, fg=TXT, cmd=self.destroy, side="left", width=104)
+                self._flat_button(self._actions, "Baixar Python", WARN, WARN_H, fg=INK, cmd=lambda: self._open(PY_DOWNLOAD), width=136)
+            self._flat_button(self._actions, "Tentar novamente", ACCENT, ACCENT_H, cmd=self._retry, width=160)
+            self._flat_button(self._actions, "Fechar", CARD, LINE, fg=INK, cmd=self.destroy, side="left", width=104)
 
     def _retry(self):
+        self._reset_steps()
         self._replace_log("")
         for widget in self._actions.winfo_children():
             widget.destroy()
