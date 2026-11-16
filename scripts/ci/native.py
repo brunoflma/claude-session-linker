@@ -94,7 +94,7 @@ def run_lane(lane, mode):
         [sys.executable, 'scripts/release_bundle.py', '--ref', commit],
         [sys.executable, 'scripts/release_bundle.py', '--ref', commit, '--check'],
         [sys.executable, 'scripts/smoke_package.py', '--ref', commit, '--gui'],
-        ['git', 'diff', '--check'],
+        ['git', '--no-pager', 'diff', '--check'],
     ]
     for command in commands:
         subprocess.run(command, cwd=ROOT, env=env, check=True)
