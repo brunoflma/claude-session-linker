@@ -40,8 +40,12 @@ def checkout_credential(*, run=subprocess.run, now=time.time):
         raise AuthorityError('Checkout credential helper did not provide an ephemeral credential; root must resolve authority')
     fields = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
     token = fields.get('password', '')
-    if not re.fullmatch(r'ghs_[A-Za-z0-9_]+', token):
-        raise AuthorityError('Only a GitHub installation access token from checkout is accepted; PAT/user tokens are refused')
+    if (not 20 <= len(token) <= 16384 or any(c.isspace() or ord(c) < 33 or ord(c) > 126 for c in token)
+            or token.startswith(('ghp_', 'github_pat_', 'ghu_', 'gho_', 'ghr_'))):
+        raise AuthorityError('Checkout credential is missing, invalid, or a permanent/user token')
+    # Provider credentials are opaque and can use a proxy format. Both callers
+    # must pass installation_authority() before using the candidate for writes;
+    # the authenticated installation endpoint proves its kind and repository.
     expiry = fields.get('password_expiry_utc')
     if expiry is not None:
         if not re.fullmatch(r'\d+', expiry):

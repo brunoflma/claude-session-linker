@@ -47,6 +47,15 @@ class CredentialTests(unittest.TestCase):
         runner = Mock(return_value=subprocess.CompletedProcess([], 0, f'password={CANARY}\npassword_expiry_utc=3000\n', ''))
         self.assertEqual(release.checkout_credential(run=runner, now=lambda: 1000), CANARY)
 
+    def test_opaque_provider_credential_requires_authenticated_installation_proof(self):
+        candidate = 'v1.SYNTHETIC_OPAQUE_PROVIDER_CANARY'
+        runner = Mock(return_value=subprocess.CompletedProcess([], 0, 'password=' + candidate + '\n', ''))
+        self.assertEqual(release.checkout_credential(run=runner), candidate)
+        denied = Mock(side_effect=RuntimeError('installation endpoint denied'))
+        with self.assertRaisesRegex(RuntimeError, 'installation endpoint denied'):
+            release.installation_authority(candidate, api=denied)
+        self.assertEqual(denied.call_args.args[0], '/installation/repositories?per_page=100&page=1')
+
     def test_installation_token_repo_access_is_verified_without_claiming_contents_write(self):
         repository = {'id': release.REPOSITORY_ID, 'full_name': release.REPOSITORY, 'permissions': {'push': True}}
         api = Mock(side_effect=[{'total_count': 1, 'repositories': [repository]}, repository])
