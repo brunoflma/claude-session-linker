@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "metadata_checked": "2026-11-16",
+  "win32": {
+    "3.11": {
+      "version": "3.11.9",
+      "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.zip",
+      "sha256": "4ba90a4ab8990891033d37ff04d2047fdae8948d0d2729a68d3a6a17c585b681",
+      "metadata_url": "https://www.python.org/ftp/python/index-windows.json",
+      "metadata_id": "pythoncore-3.11-64",
+      "note": "Latest complete Windows 3.11 binary in the official index; later security-only source releases are not substituted."
+    },
+    "3.14": {
+      "version": "3.14.10",
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-amd64.zip",
+      "sha256": "cc28026a650970cc1570bb127312f1f9634eb67abfe157ae6ca1acbbc627d091",
+      "metadata_url": "https://www.python.org/ftp/python/index-windows.json",
+      "metadata_id": "pythoncore-3.14-64"
+    },
+    "3.15": {
+      "version": "3.15.2",
+      "url": "https://www.python.org/ftp/python/3.15.2/python-3.15.2-amd64.zip",
+      "sha256": "d6da9c33a32cf111e1d52b91392c83ea6a808545b646e0557f66cb6d9ee76785",
+      "metadata_url": "https://www.python.org/ftp/python/index-windows.json",
+      "metadata_id": "pythoncore-3.15-64"
+    }
+  },
+  "darwin": {
+    "3.14": {
+      "version": "3.14.10",
+      "url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-macos11.pkg",
+      "sha256": "286c7018aa2730f6747ca433dccdc2b31be45f078a9ea0ffa44d5f06368fd2d7",
+      "metadata_url": "https://www.python.org/api/v2/downloads/release_file/5900/",
+      "installer_identity": "Developer ID Installer: Python Software Foundation (BMM5U3QVKW)"
+    },
+    "3.15": {
+      "version": "3.15.2",
+      "url": "https://www.python.org/ftp/python/3.15.2/python-3.15.2-macos11.pkg",
+      "sha256": "2c6104475535b720b45774c68b0dfc9fcca2235353cf9ff81e05488f89845396",
+      "metadata_url": "https://www.python.org/api/v2/downloads/release_file/5889/",
+      "installer_identity": "Developer ID Installer: Python Software Foundation (BMM5U3QVKW)"
+    }
+  }
+}
