@@ -2,7 +2,9 @@ name: Validate application
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
+  workflow_dispatch:
   workflow_call:
 permissions:
   contents: read
@@ -13,18 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2025
-            python: '3.11'
-          - os: windows-2025
-            python: '3.14'
-          - os: windows-2025
-            python: '3.15'
           - os: macos-15-intel
             python: '3.14'
-          - os: macos-15
-            python: '3.14'
-          - os: macos-15
-            python: '3.15'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
@@ -32,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Gate the tested revision, including PR heads rather than a synthetic merge.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0

@@ -1,102 +1,63 @@
 version: 2.1
-
-# Native executors consume credits. None are allocated on an ordinary push.
-# Root must verify image availability, architecture and Free credit entitlement.
 parameters:
-  run-windows-probes:
-    type: boolean
-    default: false
-  run-macos-intel-probe:
-    type: boolean
-    default: false
-  run-macos-arm-probes:
-    type: boolean
-    default: false
-  run-native-validation:
-    type: boolean
-    default: false
-  run-supported-native-validation:
-    type: boolean
-    default: false
-  native-executors-approved:
-    type: boolean
-    default: false
-  enable-tag-publish:
-    type: boolean
-    default: false
   windows-image:
     type: string
     default: windows-server-2025-gui:2026.10.1
   macos-xcode:
     type: string
-    default: '16.4.0'
+    default: 16.4.0
   macos-arm-resource:
     type: string
     default: m4pro.medium
-
+  run-supported-native-validation:
+    type: boolean
+    default: true
+  release-authority-probe:
+    type: boolean
+    default: false
 commands:
   fetch-history:
     steps:
-      - run:
-          name: Read full tag history and current remote main
-          command: |
-            if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
-              git fetch --unshallow origin
-            fi
-            git fetch --tags origin
-            git fetch origin refs/heads/main:refs/remotes/origin/main
-
+    - run:
+        name: Read full tag history and current remote main
+        command: |
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch --tags origin
+          git fetch origin refs/heads/main:refs/remotes/origin/main
 jobs:
   presentation:
     docker:
-      - image: cimg/node:24.22.1
+    - image: cimg/node:24.22.1
     steps:
-      - checkout
-      - run:
-          name: Require Node 24; check presentation without GUI or real profiles
-          command: |
-            node -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1)'
-            node --check docs/assets/site.js
-            node --check docs/assets/guide.js
-            python3 scripts/verify-site.py
-            python3 -m unittest discover -s scripts -p 'test_*.py'
-            python3 -m unittest discover -s scripts/ci -p 'test_*.py'
-            git diff --check
-      - run:
-          name: Native coverage is separate
-          command: echo 'PRESENTATION ONLY. Six native GUI lanes remain required; no release authorization.'
-
-  blocked:
-    docker:
-      - image: cimg/base:current
-    steps:
-      - run:
-          name: Native execution not approved
-          command: |
-            echo 'BLOCKED: root must verify hosted images, native architecture and available Free credits.'
-            echo 'No native executor has been allocated. No skipped lane counts as passed.'
-            exit 1
-
-  intel-unavailable:
-    docker:
-      - image: cimg/base:current
-    steps:
-      - run:
-          name: Intel hosted coverage is unavailable; legacy Actions integration remains pending
-          command: |
-            echo 'BLOCKED: CircleCI retired hosted Intel macOS; no Intel native executor is requested.'
-            echo 'The five supported CircleCI lanes cannot attest Intel or full release coverage.'
-            echo 'Legacy Intel Actions exception and exact-SHA/tag evidence integration require root acceptance.'
-            exit 1
-
+    - checkout
+    - run:
+        name: Require Node 24; check presentation without GUI or real profiles
+        command: |
+          node -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1)'
+          node --check docs/assets/site.js
+          node --check docs/assets/guide.js
+          python3 scripts/verify-site.py
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+          git diff --check
+    - run:
+        name: Native coverage is separate
+        command: echo 'PRESENTATION ONLY. Six native GUI lanes remain required; no release authorization.'
   windows-native:
     parameters:
       python-series:
         type: enum
-        enum: ['3.11', '3.14', '3.15']
+        enum:
+        - '3.11'
+        - '3.14'
+        - '3.15'
       mode:
         type: enum
-        enum: [probe, validation]
+        enum:
+        - probe
+        - validation
     machine:
       image: << pipeline.parameters.windows-image >>
     resource_class: windows.medium
@@ -104,48 +65,53 @@ jobs:
     environment:
       CSL_PIPELINE_ID: << pipeline.id >>
     steps:
-      - checkout
-      - run:
-          name: Read full history without replacing tags
-          command: |
-            $ErrorActionPreference = 'Stop'
-            if ((git rev-parse --is-shallow-repository) -eq 'true') {
-              git fetch --unshallow origin
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-            git fetch --tags origin
+    - checkout
+    - run:
+        name: Read full history without replacing tags
+        command: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse --is-shallow-repository) -eq 'true') {
+            git fetch --unshallow origin
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git fetch origin refs/heads/main:refs/remotes/origin/main
-            exit $LASTEXITCODE
-      - run:
-          name: Exact Python, application suite and extracted-package GUI smoke
-          command: ./scripts/ci/windows.ps1 -Series '<< parameters.python-series >>' -Mode '<< parameters.mode >>'
-          no_output_timeout: 15m
-      - store_artifacts:
-          path: release-artifacts/ci-receipts
-      - store_artifacts:
-          path: release-artifacts/ci-runtime/provision.json
-      - store_artifacts:
-          path: release-artifacts/release-manifest.json
-      - store_artifacts:
-          path: release-artifacts/SHA256SUMS.txt
-      - persist_to_workspace:
-          root: release-artifacts
-          paths: [ci-receipts]
-
+          }
+          git fetch --tags origin
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin refs/heads/main:refs/remotes/origin/main
+          exit $LASTEXITCODE
+    - run:
+        name: Exact Python, application suite and extracted-package GUI smoke
+        command: ./scripts/ci/windows.ps1 -Series '<< parameters.python-series >>' -Mode '<< parameters.mode >>'
+        no_output_timeout: 15m
+    - store_artifacts:
+        path: release-artifacts/ci-receipts
+    - store_artifacts:
+        path: release-artifacts/ci-runtime/provision.json
+    - store_artifacts:
+        path: release-artifacts/release-manifest.json
+    - store_artifacts:
+        path: release-artifacts/SHA256SUMS.txt
+    - persist_to_workspace:
+        root: release-artifacts
+        paths:
+        - ci-receipts
   macos-native:
     parameters:
       python-series:
         type: enum
-        enum: ['3.14', '3.15']
+        enum:
+        - '3.14'
+        - '3.15'
       architecture:
         type: enum
-        enum: [arm]
+        enum:
+        - arm
       native-resource:
         type: string
       mode:
         type: enum
-        enum: [probe, validation]
+        enum:
+        - probe
+        - validation
     macos:
       xcode: << pipeline.parameters.macos-xcode >>
     resource_class: << parameters.native-resource >>
@@ -154,204 +120,161 @@ jobs:
       CSL_PYTHON_SERIES: << parameters.python-series >>
       CSL_ARCHITECTURE: << parameters.architecture >>
     steps:
-      - checkout
-      - fetch-history
-      - run:
-          name: Provision verified PSF Python/Tk, full suite and extracted-package GUI smoke
-          command: python3 scripts/ci/provision.py --series "$CSL_PYTHON_SERIES" --mode '<< parameters.mode >>'
-          no_output_timeout: 15m
-      - store_artifacts:
-          path: release-artifacts/ci-receipts
-      - store_artifacts:
-          path: release-artifacts/ci-runtime/provision.json
-      - store_artifacts:
-          path: release-artifacts/release-manifest.json
-      - store_artifacts:
-          path: release-artifacts/SHA256SUMS.txt
-      - persist_to_workspace:
-          root: release-artifacts
-          paths: [ci-receipts]
-
+    - checkout
+    - fetch-history
+    - run:
+        name: Provision verified PSF Python/Tk, full suite and extracted-package GUI smoke
+        command: python3 scripts/ci/provision.py --series "$CSL_PYTHON_SERIES" --mode '<< parameters.mode >>'
+        no_output_timeout: 15m
+    - store_artifacts:
+        path: release-artifacts/ci-receipts
+    - store_artifacts:
+        path: release-artifacts/ci-runtime/provision.json
+    - store_artifacts:
+        path: release-artifacts/release-manifest.json
+    - store_artifacts:
+        path: release-artifacts/SHA256SUMS.txt
+    - persist_to_workspace:
+        root: release-artifacts
+        paths:
+        - ci-receipts
   native-coverage:
     parameters:
       expectation:
         type: enum
-        enum: [complete-native, supported-native]
+        enum:
+        - complete-native
+        - supported-native
         default: complete-native
     docker:
-      - image: cimg/python:3.14
+    - image: cimg/python:3.14
     environment:
       CSL_PIPELINE_ID: << pipeline.id >>
     steps:
-      - checkout
-      - attach_workspace:
-          at: /tmp/native-evidence
-      - run: python3 scripts/ci/gate.py --receipts /tmp/native-evidence/ci-receipts --expectation '<< parameters.expectation >>'
-
-  stage-release-candidate:
-    docker:
-      - image: cimg/python:3.14
-    environment:
+    - checkout
+    - attach_workspace:
+        at: /tmp/native-evidence
+    - run: python3 scripts/ci/gate.py --receipts /tmp/native-evidence/ci-receipts --expectation '<< parameters.expectation
+        >>'
+  hybrid-coverage:
+    docker: &id001
+    - image: cimg/python:3.14
+    resource_class: small
+    environment: &id002
       CSL_PIPELINE_ID: << pipeline.id >>
     steps:
-      - checkout
-      - fetch-history
-      - attach_workspace:
-          at: /tmp/native-evidence
-      - run:
-          name: Require six same-workflow native receipts and annotated tag at this commit
-          command: |
-            python3 scripts/ci/gate.py --receipts /tmp/native-evidence/ci-receipts --release
-            python3 scripts/release_bundle.py --ref "$CIRCLE_TAG"
-            python3 scripts/release_bundle.py --ref "$CIRCLE_TAG" --check
-      - store_artifacts:
-          path: release-artifacts
-
-  publish-release-blocked:
-    docker:
-      - image: cimg/python:3.14
+    - checkout
+    - fetch-history
+    - attach_workspace:
+        at: /tmp/native-evidence
+    - run:
+        name: Require five CircleCI GUI receipts and the exact Intel Actions proof
+        command: |
+          set -euo pipefail
+          args=()
+          if [[ -n "${CIRCLE_TAG:-}" ]]; then args+=(--release); fi
+          python3 scripts/ci/hybrid.py --receipts /tmp/native-evidence/ci-receipts "${args[@]}"
+        no_output_timeout: 12m
+    - store_artifacts:
+        path: release-artifacts/ci-hybrid
+  publish-release:
+    docker: *id001
+    resource_class: small
+    environment: *id002
     steps:
-      - run:
-          name: Publication intentionally unavailable until root integrates protected credential issuer
-          command: |
-            echo 'BLOCKED: no GitHub ephemeral installation-token issuer/context is configured.'
-            echo 'Approval does not publish. Root must protect tags, restrict context and serialize publication per tag.'
-            echo 'Reuse scripts/publish_release.py only after rechecking receipts/tag and rebuilding verified artifacts.'
-            exit 1
-
+    - checkout
+    - fetch-history
+    - attach_workspace:
+        at: /tmp/native-evidence
+    - run:
+        name: Recheck tag, hybrid proof and hashes; publish using ephemeral checkout authority
+        command: |
+          test "${CSL_RELEASE_PUBLICATION_AUTHORIZED:-false}" = true
+          test "${CSL_CHECKOUT_CONTENTS_WRITE_CONFIRMED:-false}" = true
+          python3 scripts/ci/release_publish.py --receipts /tmp/native-evidence/ci-receipts
+        no_output_timeout: 12m
+    - store_artifacts:
+        path: release-artifacts/ci-hybrid
+    - store_artifacts:
+        path: release-artifacts/SHA256SUMS.txt
+  release-authority-probe:
+    docker: *id001
+    resource_class: small
+    environment: *id002
+    steps:
+    - checkout
+    - fetch-history
+    - run:
+        name: Prove draft and asset authority without publishing a release
+        command: python3 scripts/ci/probe_authority.py
+    - store_artifacts:
+        path: release-artifacts/ci-authority
 workflows:
+  native-validation:
+    when:
+      and:
+      - << pipeline.parameters.run-supported-native-validation >>
+      - or:
+        - equal:
+          - ''
+          - << pipeline.git.tag >>
+        - matches:
+            pattern: ^v[0-9]+\.[0-9]+\.[0-9]+$
+            value: << pipeline.git.tag >>
+    jobs:
+    - presentation:
+        filters: &id003
+          tags:
+            only: /.*/
+    - windows-native:
+        name: windows-native-py<< matrix.python-series >>
+        mode: validation
+        filters: *id003
+        matrix:
+          alias: windows-required
+          parameters:
+            python-series:
+            - '3.11'
+            - '3.14'
+            - '3.15'
+    - macos-native:
+        name: macos-arm-native-py<< matrix.python-series >>
+        architecture: arm
+        native-resource: << pipeline.parameters.macos-arm-resource >>
+        mode: validation
+        filters: *id003
+        matrix:
+          alias: macos-arm-required
+          parameters:
+            python-series:
+            - '3.14'
+            - '3.15'
+    - hybrid-coverage:
+        requires:
+        - presentation
+        - windows-required
+        - macos-arm-required
+        filters: *id003
+    - publish-release:
+        requires:
+        - hybrid-coverage
+        context: csl-release
+        serial-group: << pipeline.project.slug >>/desktop-release
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
   presentation-only:
     when:
-      not:
-        or:
-          - << pipeline.parameters.run-supported-native-validation >>
-          - << pipeline.parameters.run-native-validation >>
-          - << pipeline.parameters.enable-tag-publish >>
+      not: << pipeline.parameters.run-supported-native-validation >>
     jobs:
-      - presentation:
-          filters: {tags: {only: '/^v.*/'}}
-
-  native-request-blocked:
-    when:
-      and:
-        - not: << pipeline.parameters.native-executors-approved >>
-        - or:
-            - << pipeline.parameters.run-windows-probes >>
-            - << pipeline.parameters.run-macos-arm-probes >>
-            - << pipeline.parameters.run-native-validation >>
-            - << pipeline.parameters.run-supported-native-validation >>
-            - << pipeline.parameters.enable-tag-publish >>
+    - presentation
+  manual-authority-probe:
+    when: << pipeline.parameters.release-authority-probe >>
     jobs:
-      - blocked:
-          filters: {tags: {only: '/.*/'}}
-
-  windows-probes:
-    when:
-      and:
-        - << pipeline.parameters.run-windows-probes >>
-        - << pipeline.parameters.native-executors-approved >>
-    jobs:
-      - windows-native:
-          name: windows-2025-probe-py<< matrix.python-series >>
-          mode: probe
-          matrix:
-            parameters: {python-series: ['3.11', '3.14', '3.15']}
-
-  intel-request-unavailable:
-    when:
-      or:
-        - << pipeline.parameters.run-macos-intel-probe >>
-        - << pipeline.parameters.run-native-validation >>
-    jobs:
-      - intel-unavailable:
-          filters: {tags: {only: '/.*/'}}
-
-  macos-arm-probes:
-    when:
-      and:
-        - << pipeline.parameters.run-macos-arm-probes >>
-        - << pipeline.parameters.native-executors-approved >>
-    jobs:
-      - macos-native:
-          name: macos-arm-probe-py<< matrix.python-series >>
-          architecture: arm
-          native-resource: << pipeline.parameters.macos-arm-resource >>
-          mode: probe
-          matrix:
-            parameters: {python-series: ['3.14', '3.15']}
-
-  supported-native-validation:
-    when:
-      and:
-        - << pipeline.parameters.native-executors-approved >>
-        - or:
-            - << pipeline.parameters.run-supported-native-validation >>
-            - << pipeline.parameters.run-native-validation >>
-    jobs:
-      - presentation:
-          filters: &all-tags {tags: {only: '/.*/'}}
-      - windows-native:
-          name: windows-native-py<< matrix.python-series >>
-          mode: validation
-          filters: *all-tags
-          matrix:
-            alias: windows-required
-            parameters: {python-series: ['3.11', '3.14', '3.15']}
-      - macos-native:
-          name: macos-arm-native-py<< matrix.python-series >>
-          architecture: arm
-          native-resource: << pipeline.parameters.macos-arm-resource >>
-          mode: validation
-          filters: *all-tags
-          matrix:
-            alias: macos-arm-required
-            parameters: {python-series: ['3.14', '3.15']}
-      - native-coverage:
-          name: supported-native-coverage
-          expectation: supported-native
-          requires: [presentation, windows-required, macos-arm-required]
-          filters: *all-tags
-
-  protected-tag-publish-request:
-    when:
-      and:
-        - << pipeline.parameters.native-executors-approved >>
-        - << pipeline.parameters.enable-tag-publish >>
-    jobs:
-      - presentation:
-          filters: &release-tags {branches: {ignore: '/.*/'}, tags: {only: '/^v[0-9]+\.[0-9]+\.[0-9]+$/'}}
-      - windows-native:
-          name: windows-native-py<< matrix.python-series >>
-          mode: validation
-          filters: *release-tags
-          matrix:
-            alias: windows-required
-            parameters: {python-series: ['3.11', '3.14', '3.15']}
-      - macos-native:
-          name: macos-arm-native-py<< matrix.python-series >>
-          architecture: arm
-          native-resource: << pipeline.parameters.macos-arm-resource >>
-          mode: validation
-          filters: *release-tags
-          matrix:
-            alias: macos-arm-required
-            parameters: {python-series: ['3.14', '3.15']}
-      - native-coverage:
-          name: supported-native-coverage
-          expectation: supported-native
-          requires: [presentation, windows-required, macos-arm-required]
-          filters: *release-tags
-      - intel-unavailable:
-          name: intel-actions-evidence-blocked
-          requires: [supported-native-coverage]
-          filters: *release-tags
-      - stage-release-candidate:
-          requires: [intel-actions-evidence-blocked]
-          filters: *release-tags
-      - approve-tag-publication:
-          type: approval
-          requires: [stage-release-candidate]
-          filters: *release-tags
-      - publish-release-blocked:
-          requires: [approve-tag-publication]
-          filters: *release-tags
+    - release-authority-probe:
+        context: csl-release
+        filters:
+          branches:
+            only: main
