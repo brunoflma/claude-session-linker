@@ -1,9 +1,0 @@
-{
-  "schema": 1,
-  "github_cli": {
-    "version": "2.104.0",
-    "url": "https://github.com/cli/cli/releases/download/v2.104.0/gh_2.104.0_linux_amd64.tar.gz",
-    "sha256": "98cb101ad87dbbd3f6b2f2bfcbd43197ccd07643140121d8a9cfaa91eadbc24e",
-    "metadata_url": "https://api.github.com/repos/cli/cli/releases/tags/v2.104.0"
-  }
-}
