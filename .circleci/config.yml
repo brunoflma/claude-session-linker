@@ -49,7 +49,7 @@ commands:
 jobs:
   presentation:
     docker:
-      - image: cimg/node:24.0
+      - image: cimg/node:24.22.1
     steps:
       - checkout
       - run:
@@ -221,6 +221,12 @@ jobs:
 
 workflows:
   presentation-only:
+    when:
+      not:
+        or:
+          - << pipeline.parameters.run-supported-native-validation >>
+          - << pipeline.parameters.run-native-validation >>
+          - << pipeline.parameters.enable-tag-publish >>
     jobs:
       - presentation:
           filters: {tags: {only: '/^v.*/'}}
