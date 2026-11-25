@@ -31,3 +31,7 @@ Report the release URL, version/tag, source commit, both synchronized checkout p
 Never publish secrets, account labels, session registries, backups, logs, virtual environments, caches or conversation data. Do not launch operations against real Claude profiles as part of release testing. Use synthetic temporary profiles and do not force-close a user's Claude Desktop.
 
 See `RELEASING.md` for the operational commands and recovery procedure.
+
+## Orientação Web consultiva
+
+Ao alterar as superfícies web descritas em [docs/modern-web-guidance.md](docs/modern-web-guidance.md), consulte o guia oficial e use Baseline Widely Available como alvo inicial. A adoção não muda o núcleo do produto, não instala componentes globais, não autoriza publicação nem adiciona scanner obrigatório ao CI. Preserve todas as regras e testes existentes; registre o que foi verificado no navegador e o que ficou pendente.
